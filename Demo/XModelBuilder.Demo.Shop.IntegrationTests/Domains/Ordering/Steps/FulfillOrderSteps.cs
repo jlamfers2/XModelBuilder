@@ -4,7 +4,7 @@ using XModelBuilder.Demo.Shop.Contracts;
 using XModelBuilder.Demo.Shop.IntegrationTests.Common;
 using Xunit;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 
 /// <summary>
 /// Order fulfilment: the place → pay → ship state machine and its rules. The setup steps build a

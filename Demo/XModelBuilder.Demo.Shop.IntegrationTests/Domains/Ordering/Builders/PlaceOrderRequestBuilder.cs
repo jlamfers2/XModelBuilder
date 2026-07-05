@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using XModelBuilder.Demo.Shop.Contracts;
 using XModelBuilder.Demo.Shop.Domain;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 
 /// <summary>
 /// The main XModelBuilder showcase: a request that is itself a small graph. The builder fills in a

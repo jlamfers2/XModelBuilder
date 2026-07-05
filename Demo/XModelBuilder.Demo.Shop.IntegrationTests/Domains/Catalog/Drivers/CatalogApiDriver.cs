@@ -1,7 +1,7 @@
 using XModelBuilder.Demo.Shop.Contracts;
 using XModelBuilder.Demo.Shop.IntegrationTests.Common;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
 
 /// <summary>SPECIFIC driver for the catalog endpoints.</summary>
 public sealed class CatalogApiDriver(HttpClient client, CurrentUserContext user, HttpResponseContext response)

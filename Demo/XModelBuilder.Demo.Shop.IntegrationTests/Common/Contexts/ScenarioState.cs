@@ -1,9 +1,8 @@
-using XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
-using XModelBuilder.Demo.Shop.IntegrationTests.Common;
-using XModelBuilder.Demo.Shop.IntegrationTests.Customers;
-using XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Aggregate;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Common;
 
 /// <summary>
 /// The optional AGGREGATE context: bundles the per-domain scenario contexts so a step (or driver) that

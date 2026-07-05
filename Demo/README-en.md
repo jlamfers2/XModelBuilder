@@ -16,38 +16,52 @@ database.
 
 ## Four features, multiple scenarios, multiple roles
 
-- `Ordering/BestellingPlaatsen.feature` — a valid order, insufficient stock, guest (401),
-  a discount code.
-- `Ordering/BestellingUitleveren.feature` — the warehouse ships a paid order, an unpaid
-  order is rejected (409), a customer may not ship (403).
-- `Catalog/CatalogusEnToegang.feature` — an admin adds a product, a customer is forbidden
-  (403), a customer cannot see another customer's orders (403).
-- `Customers/KlantSamenstellen.feature` — a customer is **built up in aggregate**: first as
-  a person, then **extended** with a shipping and billing address in separate Gherkin steps
-  via XModelBuilder's `Extend` (without re-running the builder defaults).
+- `Domains/Ordering/Features/BestellingPlaatsen.feature` — a valid order, insufficient stock,
+  guest (401), a discount code.
+- `Domains/Ordering/Features/BestellingUitleveren.feature` — the warehouse ships a paid order,
+  an unpaid order is rejected (409), a customer may not ship (403).
+- `Domains/Catalog/Features/CatalogusEnToegang.feature` — an admin adds a product, a customer
+  is forbidden (403), a customer cannot see another customer's orders (403).
+- `Domains/Customers/Features/KlantSamenstellen.feature` — a customer is **built up in aggregate**:
+  first as a person, then **extended** with a shipping and billing address in separate Gherkin
+  steps via XModelBuilder's `Extend` (without re-running the builder defaults).
 
-## Layout by domain (one class per file)
+## Layout: first by domain, then by artifact (one class per file)
 
-The tests are grouped per domain; each domain has its own driver, model builders, steps,
-feature(s) and **its own scenario context**. Every class lives in its own file.
+The tests are organised in two tiers: under `Domains/` each domain (Customers, Catalog,
+Ordering) holds fixed artifact folders — where applicable — `Features`, `Drivers`, `Steps`,
+`Builders` and `Contexts`. `Common/` follows the same artifact split for the shared
+foundation. Every class lives in its own file; each domain has its **own scenario context**.
 
-- `Common/` — the shared foundation: the generic `ApiDriver` (HTTP+JSON+auth),
-  `AuthenticationDriver`, `ApiResponse`, `CurrentUserContext`, `HttpResponseContext`,
-  `CommonSteps` (auth + generic authorization asserts) and `RoleMap`.
-- `Ordering/` — `OrderApiDriver`, `OrderContext`, the `"order"`/`"address"` builders and the
-  `PlaceOrderSteps`/`FulfillOrderSteps`.
-- `Catalog/` — `CatalogApiDriver`, `CatalogContext`, `ProductBuilder`, `CatalogAccessSteps`.
-- `Customers/` — the role-based `Customer` builders (`[ModelBuilder("customer"|"warehouse"|
-  "admin")]`), the `"customerAddress"` builder, `CustomerBuildContext` and the
-  `CustomerBuildSteps` of the aggregated build.
-- `Aggregate/` — the **optional** aggregate `ShopDriver` + `ScenarioState`, bundling the
-  per-domain drivers/contexts for steps that combine several domains.
+```
+Domains/
+  Customers/   Features · Steps · Builders · Contexts        (no Drivers: it builds models in-memory)
+  Catalog/     Features · Drivers · Steps · Builders · Contexts
+  Ordering/    Features · Drivers · Steps · Builders · Contexts
+Common/        Drivers · Steps · Contexts
+Support/       Infrastructure · Seeding · DI registration
+```
+
+- `Common/` — the shared foundation: `Drivers/` (generic `ApiDriver` (HTTP+JSON+auth),
+  `AuthenticationDriver` and the optional aggregate `ShopDriver`), `Steps/` (`CommonSteps`
+  with auth + generic authorization asserts, and `RoleMap`) and `Contexts/`
+  (`CurrentUserContext`, `HttpResponseContext`, `ApiResponse` and the optional aggregate
+  `ScenarioState`).
+- `Domains/Ordering/` — `Drivers/OrderApiDriver`, `Contexts/OrderContext`,
+  `Builders/` (`"order"` + `"address"`) and `Steps/` (`PlaceOrderSteps`, `FulfillOrderSteps`).
+- `Domains/Catalog/` — `CatalogApiDriver`, `CatalogContext`, `ProductBuilder`, `CatalogAccessSteps`.
+- `Domains/Customers/` — the role-based `Customer` builders (`[ModelBuilder("customer"|
+  "warehouse"|"admin")]`) + the `"customerAddress"` builder, `CustomerBuildContext` and the
+  `CustomerBuildSteps` of the aggregated build (no driver of its own).
 - `Support/Infrastructure/` — `CustomWebApplicationFactory` (test-base DI),
   `TestDatabase` (shared connection + transaction), `TestAuthHandler`.
 - `Support/Seeding/` — `DatabaseSeeder` builds the initial dataset with XModelBuilder.
 - `Support/ShopModelBuilders.cs` — registers the provider, **both fakers** (XFaker + Bogus)
   and all builders; reused by **both** DI layers.
 - `Support/ScenarioDependencies.cs` — the **scenario-specific DI** (Reqnroll MS DI plugin).
+
+The aggregate `ShopDriver`/`ScenarioState` bundle the per-domain drivers/contexts for steps
+that combine several domains; they live in `Common/` because they belong to no single domain.
 
 ## Two fakers side by side (XFaker + Bogus)
 

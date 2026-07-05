@@ -1,10 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Reqnroll.Microsoft.Extensions.DependencyInjection;
-using XModelBuilder.Demo.Shop.IntegrationTests.Aggregate;
-using XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
 using XModelBuilder.Demo.Shop.IntegrationTests.Common;
-using XModelBuilder.Demo.Shop.IntegrationTests.Customers;
-using XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 using XModelBuilder.Demo.Shop.IntegrationTests.Support.Infrastructure;
 
 namespace XModelBuilder.Demo.Shop.IntegrationTests.Support;

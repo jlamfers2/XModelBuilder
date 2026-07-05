@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using XModelBuilder.Demo.Shop.Domain;
 using XModelBuilder.Fakers.Bogus;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Customers;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
 
 /// <summary>A <see cref="Customer"/> with the warehouse-operator role; same model type, other defaults.</summary>
 [ModelBuilder("warehouse")]

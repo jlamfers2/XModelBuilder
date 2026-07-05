@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using XModelBuilder.Demo.Shop.Domain;
 using XModelBuilder.Fakers.XFaker;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
 
 /// <summary>
 /// Builder for catalog <see cref="Product"/>s used by the seed (category is set by the seeder). SKUs

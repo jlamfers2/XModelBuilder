@@ -3,7 +3,7 @@ using XModelBuilder.Demo.Shop.Domain;
 using XModelBuilder.Reqnroll;
 using Xunit;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Customers;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
 
 /// <summary>
 /// The AGGREGATED-BUILD showcase: a <see cref="Customer"/> is composed across several Gherkin steps.

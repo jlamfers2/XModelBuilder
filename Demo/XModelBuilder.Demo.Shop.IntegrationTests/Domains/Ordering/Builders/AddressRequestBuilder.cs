@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using XModelBuilder.Demo.Shop.Contracts;
 using XModelBuilder.Fakers.Bogus;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 
 /// <summary>
 /// A default NL address for the shipping and billing side of an order request. Filler values come from

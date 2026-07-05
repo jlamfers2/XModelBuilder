@@ -16,38 +16,53 @@ een (test-)database.
 
 ## Vier features, meerdere scenario's, meerdere rollen
 
-- `Ordering/BestellingPlaatsen.feature` — geldige bestelling, onvoldoende voorraad,
-  gast (401), kortingscode.
-- `Ordering/BestellingUitleveren.feature` — magazijn verzendt betaalde order, onbetaalde
-  order geweigerd (409), klant mag niet verzenden (403).
-- `Catalog/CatalogusEnToegang.feature` — beheerder voegt product toe, klant verboden
-  (403), klant ziet andermans orders niet (403).
-- `Customers/KlantSamenstellen.feature` — een klant wordt **geaggregeerd opgebouwd**:
+- `Domains/Ordering/Features/BestellingPlaatsen.feature` — geldige bestelling, onvoldoende
+  voorraad, gast (401), kortingscode.
+- `Domains/Ordering/Features/BestellingUitleveren.feature` — magazijn verzendt betaalde order,
+  onbetaalde order geweigerd (409), klant mag niet verzenden (403).
+- `Domains/Catalog/Features/CatalogusEnToegang.feature` — beheerder voegt product toe, klant
+  verboden (403), klant ziet andermans orders niet (403).
+- `Domains/Customers/Features/KlantSamenstellen.feature` — een klant wordt **geaggregeerd opgebouwd**:
   eerst als persoon, daarna in aparte Gherkin-regels **uitgebreid** met een verzend- en
   factuuradres via XModelBuilders `Extend` (zonder de builder-defaults opnieuw te draaien).
 
-## Indeling per domein (één class per bestand)
+## Indeling: eerst per domein, dan per artefact (één class per bestand)
 
-De tests zijn gegroepeerd per domein; elk domein heeft zijn eigen driver, model­builders,
-steps, feature(s) en **eigen scenariocontext**. Elke class staat in een eigen bestand.
+De tests zijn getrapt geordend: onder `Domains/` staat elk domein (Customers, Catalog,
+Ordering) met daaronder — voor zover van toepassing — vaste artefactmappen `Features`,
+`Drivers`, `Steps`, `Builders` en `Contexts`. `Common/` volgt dezelfde artefactindeling
+voor het gedeelde fundament. Elke class staat in een eigen bestand; elk domein heeft zijn
+**eigen scenariocontext**.
 
-- `Common/` — het gedeelde fundament: generieke `ApiDriver` (HTTP+JSON+auth),
-  `AuthenticationDriver`, `ApiResponse`, `CurrentUserContext`, `HttpResponseContext`,
-  `CommonSteps` (auth + generieke autorisatie-asserts) en `RoleMap`.
-- `Ordering/` — `OrderApiDriver`, `OrderContext`, de `"order"`/`"address"`-builders en de
-  `PlaceOrderSteps`/`FulfillOrderSteps`.
-- `Catalog/` — `CatalogApiDriver`, `CatalogContext`, `ProductBuilder`, `CatalogAccessSteps`.
-- `Customers/` — de rol-gebaseerde `Customer`-builders (`[ModelBuilder("customer"|
-  "warehouse"|"admin")]`), de `"customerAddress"`-builder, `CustomerBuildContext` en de
-  `CustomerBuildSteps` van de geaggregeerde opbouw.
-- `Aggregate/` — de **optionele** geaggregeerde `ShopDriver` + `ScenarioState`, die de
-  per-domein drivers/contexts bundelen voor stappen die meerdere domeinen combineren.
+```
+Domains/
+  Customers/   Features · Steps · Builders · Contexts        (geen Drivers: bouwt modellen in-memory)
+  Catalog/     Features · Drivers · Steps · Builders · Contexts
+  Ordering/    Features · Drivers · Steps · Builders · Contexts
+Common/        Drivers · Steps · Contexts
+Support/       Infrastructure · Seeding · DI-registratie
+```
+
+- `Common/` — het gedeelde fundament: `Drivers/` (generieke `ApiDriver` (HTTP+JSON+auth),
+  `AuthenticationDriver` en de optionele aggregatie-`ShopDriver`), `Steps/` (`CommonSteps`
+  met auth + generieke autorisatie-asserts, en `RoleMap`) en `Contexts/`
+  (`CurrentUserContext`, `HttpResponseContext`, `ApiResponse` en de optionele aggregatie-
+  `ScenarioState`).
+- `Domains/Ordering/` — `Drivers/OrderApiDriver`, `Contexts/OrderContext`,
+  `Builders/` (`"order"` + `"address"`) en `Steps/` (`PlaceOrderSteps`, `FulfillOrderSteps`).
+- `Domains/Catalog/` — `CatalogApiDriver`, `CatalogContext`, `ProductBuilder`, `CatalogAccessSteps`.
+- `Domains/Customers/` — de rol-gebaseerde `Customer`-builders (`[ModelBuilder("customer"|
+  "warehouse"|"admin")]`) + de `"customerAddress"`-builder, `CustomerBuildContext` en de
+  `CustomerBuildSteps` van de geaggregeerde opbouw (geen eigen driver).
 - `Support/Infrastructure/` — `CustomWebApplicationFactory` (test-basis-DI),
   `TestDatabase` (gedeelde connectie + transactie), `TestAuthHandler`.
 - `Support/Seeding/` — `DatabaseSeeder` bouwt de initiële dataset met XModelBuilder.
 - `Support/ShopModelBuilders.cs` — registreert de provider, **beide fakers** (XFaker +
   Bogus) en alle builders; door **beide** DI-lagen hergebruikt.
 - `Support/ScenarioDependencies.cs` — de **scenario-specifieke DI** (Reqnroll MS DI-plugin).
+
+De aggregatie-`ShopDriver`/`ScenarioState` bundelen de per-domein drivers/contexts voor
+stappen die meerdere domeinen combineren; ze wonen in `Common/` omdat ze niet bij één domein horen.
 
 ## Twee fakers naast elkaar (XFaker + Bogus)
 

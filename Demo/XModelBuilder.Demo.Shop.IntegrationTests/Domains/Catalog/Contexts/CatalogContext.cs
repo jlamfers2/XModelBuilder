@@ -1,6 +1,6 @@
 using XModelBuilder.Demo.Shop.Contracts;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
 
 /// <summary>The last product created by the scenario. The Catalog domain's own scenario context.</summary>
 public sealed class CatalogContext

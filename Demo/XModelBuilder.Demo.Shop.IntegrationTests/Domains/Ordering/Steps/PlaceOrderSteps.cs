@@ -7,7 +7,7 @@ using XModelBuilder.Demo.Shop.IntegrationTests.Common;
 using XModelBuilder.Reqnroll;
 using Xunit;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 
 /// <summary>
 /// Placing orders. The request - a small graph of lines + shipping/billing address + payment - is

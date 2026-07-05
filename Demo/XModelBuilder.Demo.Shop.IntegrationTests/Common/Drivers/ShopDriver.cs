@@ -1,8 +1,7 @@
-using XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
-using XModelBuilder.Demo.Shop.IntegrationTests.Common;
-using XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Aggregate;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Common;
 
 /// <summary>
 /// The optional AGGREGATE driver: composes the per-domain drivers, for steps that orchestrate several

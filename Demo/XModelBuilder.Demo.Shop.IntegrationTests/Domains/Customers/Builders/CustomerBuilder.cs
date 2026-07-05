@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using XModelBuilder.Demo.Shop.Domain;
 using XModelBuilder.Fakers.Bogus;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Customers;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
 
 /// <summary>
 /// The default <see cref="Customer"/> builder (role Customer). This is the showcase for

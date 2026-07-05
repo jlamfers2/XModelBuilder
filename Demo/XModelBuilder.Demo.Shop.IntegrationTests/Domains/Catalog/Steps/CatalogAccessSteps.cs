@@ -2,11 +2,11 @@ using System.Net;
 using Reqnroll;
 using XModelBuilder.Demo.Shop.Contracts;
 using XModelBuilder.Demo.Shop.IntegrationTests.Common;
-using XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 using XModelBuilder.Reqnroll;
 using Xunit;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
 
 /// <summary>Catalog management (admin-only) and ownership-based access to orders.</summary>
 [Binding]

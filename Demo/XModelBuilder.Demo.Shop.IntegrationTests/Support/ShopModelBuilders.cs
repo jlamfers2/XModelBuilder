@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
-using XModelBuilder.Demo.Shop.IntegrationTests.Customers;
-using XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
+using XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 using XModelBuilder.DependencyInjection;
 using XModelBuilder.Fakers.Bogus;
 using XModelBuilder.Fakers.XFaker;

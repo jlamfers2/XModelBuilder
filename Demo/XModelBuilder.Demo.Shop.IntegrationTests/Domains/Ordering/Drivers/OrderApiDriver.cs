@@ -1,7 +1,7 @@
 using XModelBuilder.Demo.Shop.Contracts;
 using XModelBuilder.Demo.Shop.IntegrationTests.Common;
 
-namespace XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
+namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 
 /// <summary>SPECIFIC driver for the order endpoints.</summary>
 public sealed class OrderApiDriver(HttpClient client, CurrentUserContext user, HttpResponseContext response)

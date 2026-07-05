@@ -6,7 +6,7 @@ een (test-)database.
 
 ## Projecten
 
-- **`XModelBuilder.Demo.Shop`** — een ASP.NET Core Web API (.NET 8, EF Core, SQL Server).
+- **`XModelBuilder.Demo.Shop`** — een ASP.NET Core Web API (.NET 10, EF Core, SQL Server).
   Bevat één niet-triviale object-graph: `Customer → Address[]/PaymentMethod[]`,
   `Order → OrderLine[] → Product → Category` (self-referencing), plus owned
   `OrderAddress`, `Payment` en `OrderStatusHistory[]`. Rol-gebaseerde autorisatie

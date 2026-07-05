@@ -11,7 +11,7 @@ en grammatica's. Doel van deel (2) is dat dit document ook dienst kan doen als
 specificatie om een vergelijkbaar framework vanaf nul te (laten) bouwen,
 zonder de bestaande broncode te moeten lezen.
 
-Doelplatform: .NET 8 (C#), Nullable reference types aan, ImplicitUsings aan.
+Doelplatform: .NET 10 (C#), Nullable reference types aan, ImplicitUsings aan.
 Naast de kernlibrary (project XModelBuilder) bevat de solution twee losse
 integratieprojecten voor Gherkin-test-frameworks: XModelBuilder.Reqnroll en
 XModelBuilder.SpecFlow (zie hoofdstuk 18).

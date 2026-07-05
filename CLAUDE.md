@@ -20,7 +20,7 @@ voor API-details, algoritmes en randgevallen; werk het bij als gedrag verandert.
 
 | Project | Rol |
 |---|---|
-| `XModelBuilder` | Kernlibrary (net8.0) |
+| `XModelBuilder` | Kernlibrary (net10.0) |
 | `XModelBuilder.Fakers.XFaker` | Dependency-vrije deterministische faker (`AddXFaker(seed)`) |
 | `XModelBuilder.Fakers.Bogus` | Bogus-integratie (`AddBogusFaker(seed)`) |
 | `XModelBuilder.Reqnroll` / `.SpecFlow` | Gherkin-tabel-integraties (`CreateModel(s)<T>`) |
@@ -47,7 +47,7 @@ voor API-details, algoritmes en randgevallen; werk het bij als gedrag verandert.
 
 ## Conventies
 
-- Doelplatform **net8.0**, `Nullable` enable, `ImplicitUsings` enable — voor alle projecten.
+- Doelplatform **net10.0**, `Nullable` enable, `ImplicitUsings` enable — voor alle projecten.
 - Tests: **xUnit**. Nieuwe kernfeatures krijgen tests in `XModelBuilder.UnitTests`;
   faker/Gherkin-features in het bijbehorende `*.UnitTests`-project.
 - `XModelBuilder` heeft `InternalsVisibleTo` naar `XModelBuilder.UnitTests`, dus `internal`

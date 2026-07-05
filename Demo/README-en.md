@@ -6,7 +6,7 @@ database.
 
 ## Projects
 
-- **`XModelBuilder.Demo.Shop`** — an ASP.NET Core Web API (.NET 8, EF Core, SQL Server).
+- **`XModelBuilder.Demo.Shop`** — an ASP.NET Core Web API (.NET 10, EF Core, SQL Server).
   It contains one non-trivial object graph: `Customer → Address[]/PaymentMethod[]`,
   `Order → OrderLine[] → Product → Category` (self-referencing), plus an owned
   `OrderAddress`, a `Payment` and `OrderStatusHistory[]`. Role-based authorization

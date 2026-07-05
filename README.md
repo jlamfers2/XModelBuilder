@@ -11,7 +11,7 @@ grammars. The goal of part (2) is that this document can also serve as a
 specification for building a comparable framework from scratch, without having to
 read the existing source code.
 
-Target platform: .NET 8 (C#), nullable reference types enabled, implicit usings
+Target platform: .NET 10 (C#), nullable reference types enabled, implicit usings
 enabled. Besides the core library (project XModelBuilder), the solution contains two
 separate integration projects for Gherkin test frameworks: XModelBuilder.Reqnroll and
 XModelBuilder.SpecFlow (see chapter 18).

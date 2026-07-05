@@ -4,6 +4,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <Title>XModelBuilder</Title>
+    <Description>Reflection-based .NET framework for building deterministic test data: fluent builders (Object Mother + Test Data Builder) set via lambdas, string deep-paths and key/value pairs (incl. Gherkin tables), with culture-aware conversion and a mini data language for collections/objects.</Description>
+    <PackageTags>testdata;test-data;testing;object-mother;test-data-builder;builder;fluent;reflection;dotnet</PackageTags>
   </PropertyGroup>
 
 	<ItemGroup>

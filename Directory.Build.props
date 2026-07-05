@@ -1,0 +1,29 @@
+<Project>
+
+  <!-- Shared metadata for all projects. Packaging is opt-in per project via
+       <IsPackable>true</IsPackable>; see Directory.Build.targets for the pack-only bits. -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Authors>Jaap Lamfers</Authors>
+    <Company>Jaap Lamfers</Company>
+    <Product>XModelBuilder</Product>
+    <Copyright>Copyright (c) 2026 Jaap Lamfers</Copyright>
+
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/jlamfers2/XModelBuilder</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jlamfers2/XModelBuilder.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Off by default; every publishable library opts back in. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

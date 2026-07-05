@@ -4,6 +4,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <Title>XModelBuilder Reqnroll integration</Title>
+    <Description>Reqnroll Gherkin table integration for XModelBuilder. Adds CreateModel(s)&lt;T&gt; extensions to turn Reqnroll tables into models.</Description>
+    <PackageTags>testdata;test-data;testing;reqnroll;gherkin;bdd;specflow;xmodelbuilder;dotnet</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

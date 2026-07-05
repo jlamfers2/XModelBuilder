@@ -1,0 +1,58 @@
+name: Publish NuGet
+
+# Publishes the packable libraries to nuget.org.
+# Trigger by publishing a GitHub Release whose tag is a version (e.g. v1.0.0),
+# or run manually via the Actions tab (uses the version from Directory.Build.props).
+#
+# Requires a repository secret named NUGET_API_KEY (nuget.org API key).
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Pack & push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "arg=-p:Version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "Packing version ${VERSION} from tag ${GITHUB_REF_NAME}"
+          else
+            echo "arg=" >> "$GITHUB_OUTPUT"
+            echo "Packing version from Directory.Build.props"
+          fi
+
+      - name: Pack
+        run: dotnet pack XModelBuilder.sln -c Release -o ./artifacts ${{ steps.version.outputs.arg }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ./artifacts/*.*nupkg
+
+      - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::NUGET_API_KEY secret is not set; skipping push. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

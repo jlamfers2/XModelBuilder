@@ -4,6 +4,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <Title>XModelBuilder SpecFlow integration</Title>
+    <Description>SpecFlow Gherkin table integration for XModelBuilder. Adds CreateModel(s)&lt;T&gt; extensions to turn SpecFlow tables into models.</Description>
+    <PackageTags>testdata;test-data;testing;specflow;gherkin;bdd;xmodelbuilder;dotnet</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

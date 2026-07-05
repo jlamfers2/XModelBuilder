@@ -4,6 +4,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <Title>XModelBuilder Bogus integration</Title>
+    <Description>Bogus integration for XModelBuilder. Register with AddBogusFaker(seed) to use Bogus as the faker backing XModelBuilder's faker tokens.</Description>
+    <PackageTags>testdata;test-data;testing;faker;bogus;fake-data;xmodelbuilder;dotnet</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

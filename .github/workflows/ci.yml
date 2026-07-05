@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore XModelBuilder.sln
+
+      - name: Build
+        run: dotnet build XModelBuilder.sln --no-restore -c Release
+
+      # Only the unit-test projects run here. The demo integration tests
+      # (Demo/XModelBuilder.Demo.Shop.IntegrationTests) need SQL Server and
+      # are intentionally excluded from CI.
+      - name: Test
+        run: |
+          dotnet test XModelBuilder.UnitTests            -c Release --no-build --verbosity normal
+          dotnet test XModelBuilder.Fakers.UnitTests     -c Release --no-build --verbosity normal
+          dotnet test XModelBuilder.Reqnroll.UnitTests   -c Release --no-build --verbosity normal
+          dotnet test XModelBuilder.SpecFlow.UnitTests   -c Release --no-build --verbosity normal

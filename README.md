@@ -1,5 +1,10 @@
 # XModelBuilder — User Guide & Technical Specification
 
+[![CI](https://github.com/jlamfers2/XModelBuilder/actions/workflows/ci.yml/badge.svg)](https://github.com/jlamfers2/XModelBuilder/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/XModelBuilder.svg?logo=nuget)](https://www.nuget.org/packages/XModelBuilder)
+[![Downloads](https://img.shields.io/nuget/dt/XModelBuilder.svg?logo=nuget)](https://www.nuget.org/packages/XModelBuilder)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 This document describes (1) how to use XModelBuilder as a consumer of the library,
 and (2) how the library works internally, down to the level of algorithms and
 grammars. The goal of part (2) is that this document can also serve as a

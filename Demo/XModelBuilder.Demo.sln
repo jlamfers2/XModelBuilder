@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11819.183 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XModelBuilder.Demo.Shop", "XModelBuilder.Demo.Shop\XModelBuilder.Demo.Shop.csproj", "{FD8829EB-E51B-459E-9F68-A5BDED6BEB42}"
 EndProject
@@ -14,6 +14,12 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XModelBuilder.Fakers.XFaker", "..\XModelBuilder.Fakers.XFaker\XModelBuilder.Fakers.XFaker.csproj", "{470EDBCC-C338-46BF-9D24-1936299C9A91}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XModelBuilder.Fakers.Bogus", "..\XModelBuilder.Fakers.Bogus\XModelBuilder.Fakers.Bogus.csproj", "{738077B6-E886-4AF5-BEA6-79E3D72587A7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Specs", "Specs", "{C1CAA1ED-B312-4288-9407-2B0456AFD591}"
+	ProjectSection(SolutionItems) = preProject
+		README-nl.md = README-nl.md
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

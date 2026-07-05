@@ -14,36 +14,53 @@ database.
 - **`XModelBuilder.Demo.Shop.IntegrationTests`** — Reqnroll tests that run the API
   in-process via `WebApplicationFactory<Program>`.
 
-## Three features, multiple scenarios, multiple roles
+## Four features, multiple scenarios, multiple roles
 
-- `Features/BestellingPlaatsen.feature` — a valid order, insufficient stock, guest (401),
+- `Ordering/BestellingPlaatsen.feature` — a valid order, insufficient stock, guest (401),
   a discount code.
-- `Features/BestellingUitleveren.feature` — the warehouse ships a paid order, an unpaid
+- `Ordering/BestellingUitleveren.feature` — the warehouse ships a paid order, an unpaid
   order is rejected (409), a customer may not ship (403).
-- `Features/CatalogusEnToegang.feature` — an admin adds a product, a customer is forbidden
+- `Catalog/CatalogusEnToegang.feature` — an admin adds a product, a customer is forbidden
   (403), a customer cannot see another customer's orders (403).
+- `Customers/KlantSamenstellen.feature` — a customer is **built up in aggregate**: first as
+  a person, then **extended** with a shipping and billing address in separate Gherkin steps
+  via XModelBuilder's `Extend` (without re-running the builder defaults).
 
-## Layout (generic ↔ specific)
+## Layout by domain (one class per file)
 
-- `Drivers/` — a generic `ApiDriver` (HTTP+JSON+auth) → specific `OrderApiDriver`,
-  `CatalogApiDriver`, `AuthenticationDriver` → an aggregate `ShopDriver`. Everything is
-  constructor-injected.
-- `Contexts/` — typed, per-scenario contexts (`CurrentUserContext`, `HttpResponseContext`,
-  `OrderContext`, `CatalogContext`) plus an aggregate `ScenarioState`.
-- `ModelBuilders/` — XModelBuilder builders; named per role (`[ModelBuilder("customer"|
-  "warehouse"|"admin")]`) and an `"order"` builder that fills the request graph with
-  defaults. `ShopModelBuilders.AddShopModelBuilders(seed)` is reused by **both** DI layers.
+The tests are grouped per domain; each domain has its own driver, model builders, steps,
+feature(s) and **its own scenario context**. Every class lives in its own file.
+
+- `Common/` — the shared foundation: the generic `ApiDriver` (HTTP+JSON+auth),
+  `AuthenticationDriver`, `ApiResponse`, `CurrentUserContext`, `HttpResponseContext`,
+  `CommonSteps` (auth + generic authorization asserts) and `RoleMap`.
+- `Ordering/` — `OrderApiDriver`, `OrderContext`, the `"order"`/`"address"` builders and the
+  `PlaceOrderSteps`/`FulfillOrderSteps`.
+- `Catalog/` — `CatalogApiDriver`, `CatalogContext`, `ProductBuilder`, `CatalogAccessSteps`.
+- `Customers/` — the role-based `Customer` builders (`[ModelBuilder("customer"|"warehouse"|
+  "admin")]`), the `"customerAddress"` builder, `CustomerBuildContext` and the
+  `CustomerBuildSteps` of the aggregated build.
+- `Aggregate/` — the **optional** aggregate `ShopDriver` + `ScenarioState`, bundling the
+  per-domain drivers/contexts for steps that combine several domains.
 - `Support/Infrastructure/` — `CustomWebApplicationFactory` (test-base DI),
   `TestDatabase` (shared connection + transaction), `TestAuthHandler`.
 - `Support/Seeding/` — `DatabaseSeeder` builds the initial dataset with XModelBuilder.
+- `Support/ShopModelBuilders.cs` — registers the provider, **both fakers** (XFaker + Bogus)
+  and all builders; reused by **both** DI layers.
 - `Support/ScenarioDependencies.cs` — the **scenario-specific DI** (Reqnroll MS DI plugin).
+
+## Two fakers side by side (XFaker + Bogus)
+
+Both fakers are registered at once to show they coexist without colliding (their tokens are
+namespaced): **XFaker** produces deterministic product SKUs, while **Bogus** (locale `"nl"`)
+generates realistic Dutch names, e-mail addresses and addresses for customers and addresses.
 
 ## Three DI layers
 
 1. **Application** — `Program.cs` (EF Core + SQL Server, auth, services).
 2. **Test base** — `CustomWebApplicationFactory.ConfigureTestServices`: rewires the
    `ShopDbContext` onto the shared test connection, replaces auth with `TestAuthHandler`,
-   and registers XModelBuilder + a seeded XFaker (for the seeder).
+   and registers XModelBuilder + seeded XFaker and Bogus (for the seeder).
 3. **Scenario-specific** — `ScenarioDependencies` + hooks: per-scenario contexts, drivers
    and an XModelBuilder provider of their own (a different seed) for building requests in steps.
 

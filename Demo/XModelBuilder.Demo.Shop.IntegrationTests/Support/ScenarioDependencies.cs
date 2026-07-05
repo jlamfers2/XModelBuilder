@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Reqnroll.Microsoft.Extensions.DependencyInjection;
-using XModelBuilder.Demo.Shop.IntegrationTests.Contexts;
-using XModelBuilder.Demo.Shop.IntegrationTests.Drivers;
-using XModelBuilder.Demo.Shop.IntegrationTests.ModelBuilders;
+using XModelBuilder.Demo.Shop.IntegrationTests.Aggregate;
+using XModelBuilder.Demo.Shop.IntegrationTests.Catalog;
+using XModelBuilder.Demo.Shop.IntegrationTests.Common;
+using XModelBuilder.Demo.Shop.IntegrationTests.Customers;
+using XModelBuilder.Demo.Shop.IntegrationTests.Ordering;
 using XModelBuilder.Demo.Shop.IntegrationTests.Support.Infrastructure;
 
 namespace XModelBuilder.Demo.Shop.IntegrationTests.Support;
@@ -12,6 +14,7 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Support;
 /// plugin). A fresh container/scope is created per scenario; binding (step) classes are auto-registered
 /// and get their typed contexts and drivers injected. The run-wide host is exposed as a singleton, and
 /// XModelBuilder is registered again here (separate seed) for building request models inside steps.
+/// Contexts and drivers are grouped by domain (one per-domain context; one optional aggregate).
 /// </summary>
 public static class ScenarioDependencies
 {
@@ -27,14 +30,15 @@ public static class ScenarioDependencies
 
         services.AddShopModelBuilders(ScenarioSeed);
 
-        // Typed, per-scenario contexts (specific + one aggregate).
+        // Per-domain scenario contexts (+ one optional aggregate).
         services.AddScoped<CurrentUserContext>();
         services.AddScoped<HttpResponseContext>();
         services.AddScoped<OrderContext>();
         services.AddScoped<CatalogContext>();
+        services.AddScoped<CustomerBuildContext>();
         services.AddScoped<ScenarioState>();
 
-        // Drivers (generic base is abstract; specific + one aggregate), all constructor-injected.
+        // Per-domain drivers (generic base is abstract; + one optional aggregate), all constructor-injected.
         services.AddScoped<AuthenticationDriver>();
         services.AddScoped<OrderApiDriver>();
         services.AddScoped<CatalogApiDriver>();

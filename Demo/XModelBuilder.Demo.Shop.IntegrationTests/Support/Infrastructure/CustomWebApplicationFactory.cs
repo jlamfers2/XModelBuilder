@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using XModelBuilder.Demo.Shop.Data;
-using XModelBuilder.Demo.Shop.IntegrationTests.ModelBuilders;
+using XModelBuilder.Demo.Shop.IntegrationTests.Support;
 
 namespace XModelBuilder.Demo.Shop.IntegrationTests.Support.Infrastructure;
 

@@ -2,14 +2,7 @@ using System.Security.Claims;
 
 namespace XModelBuilder.Demo.Shop.Services;
 
-/// <summary>Ambient information about the caller, derived from the authenticated principal.</summary>
-public interface ICurrentUser
-{
-    string? Email { get; }
-    bool IsAuthenticated { get; }
-    bool IsInRole(string role);
-}
-
+/// <summary>Derives the caller's identity from the authenticated <see cref="ClaimsPrincipal"/>.</summary>
 public sealed class CurrentUser(IHttpContextAccessor accessor) : ICurrentUser
 {
     private ClaimsPrincipal? Principal => accessor.HttpContext?.User;

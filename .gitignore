@@ -59,6 +59,9 @@ BenchmarkDotNet.Artifacts/
 .DS_Store
 Thumbs.db
 
+# Reqnroll/SpecFlow generated code-behind
+*.feature.cs
+
 # Misc
 *.tmp
 *.bak

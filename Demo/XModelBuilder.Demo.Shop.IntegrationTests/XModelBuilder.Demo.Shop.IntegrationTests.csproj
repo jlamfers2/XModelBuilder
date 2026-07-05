@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\XModelBuilder\XModelBuilder.csproj" />
     <ProjectReference Include="..\..\XModelBuilder.Reqnroll\XModelBuilder.Reqnroll.csproj" />
     <ProjectReference Include="..\..\XModelBuilder.Fakers.XFaker\XModelBuilder.Fakers.XFaker.csproj" />
+    <ProjectReference Include="..\..\XModelBuilder.Fakers.Bogus\XModelBuilder.Fakers.Bogus.csproj" />
   </ItemGroup>
 
 </Project>

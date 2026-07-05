@@ -1,5 +1,10 @@
 # XModelBuilder - Gebruikershandleiding & Technische Specificatie
 
+[![CI](https://github.com/jlamfers2/XModelBuilder/actions/workflows/ci.yml/badge.svg)](https://github.com/jlamfers2/XModelBuilder/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/XModelBuilder.svg?logo=nuget)](https://www.nuget.org/packages/XModelBuilder)
+[![Downloads](https://img.shields.io/nuget/dt/XModelBuilder.svg?logo=nuget)](https://www.nuget.org/packages/XModelBuilder)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Dit document beschrijft (1) hoe je XModelBuilder gebruikt als consument van de
 library, en (2) hoe de library intern werkt, tot op het niveau van algoritmes
 en grammatica's. Doel van deel (2) is dat dit document ook dienst kan doen als

@@ -1,0 +1,148 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using TechTalk.SpecFlow;
+using XModelBuilder.DependencyInjection;
+
+namespace XModelBuilder.SpecFlow.UnitTests;
+
+public class SpecFlowTableExtensionsTests
+{
+    public class Person
+    {
+        public string Name { get; set; } = null!;
+        public string City { get; set; } = null!;
+        public string Country { get; set; } = null!;
+    }
+
+    [ModelBuilder("person")]
+    public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
+        : ModelBuilder<PersonBuilder, Person>(options, xmodels)
+    {
+        protected override void SetDefaults()
+        {
+        }
+    }
+
+    [ModelBuilder("dutch-person")]
+    public sealed class DutchPersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
+        : ModelBuilder<DutchPersonBuilder, Person>(options, xmodels)
+    {
+        protected override void SetDefaults()
+        {
+            With(p => p.Country, "NL");
+        }
+    }
+
+    private static IModelBuilderProvider CreateProvider() =>
+        new ServiceCollection()
+            .AddXModelBuilder()
+            .AddModelBuilder<PersonBuilder>()
+            .AddModelBuilder<DutchPersonBuilder>()
+            .UseAsDefaultModelBuilder<PersonBuilder>()
+            .BuildServiceProvider()
+            .GetRequiredService<IModelBuilderProvider>();
+
+    [Fact]
+    public void CreateModel_OnProviderFor_FromVerticalFieldValueTable_BuildsSingleInstance()
+    {
+        var table = new Table("Field", "Value");
+        table.AddRow("Name", "John");
+        table.AddRow("City", "Amsterdam");
+
+        var person = CreateProvider().For<Person>().CreateModel(table);
+
+        Assert.Equal("John", person.Name);
+        Assert.Equal("Amsterdam", person.City);
+    }
+
+    [Fact]
+    public void CreateModel_OnProviderUse_FromHorizontalSingleRowTable_BuildsSingleInstance()
+    {
+        var table = new Table("Name", "City");
+        table.AddRow("John", "Amsterdam");
+
+        var person = CreateProvider().Use<PersonBuilder>().CreateModel(table);
+
+        Assert.Equal("John", person.Name);
+        Assert.Equal("Amsterdam", person.City);
+    }
+
+    [Fact]
+    public void CreateModel_PreservesPriorManualConfiguration()
+    {
+        var table = new Table("Name", "City");
+        table.AddRow("John", "Amsterdam");
+
+        var person = CreateProvider().For<Person>()
+            .With(p => p.Country, "NL")
+            .CreateModel(table);
+
+        Assert.Equal("John", person.Name);
+        Assert.Equal("Amsterdam", person.City);
+        Assert.Equal("NL", person.Country);
+    }
+
+    [Fact]
+    public void CreateModel_FromHorizontalMultiRowTable_Throws()
+    {
+        var table = new Table("Name", "City");
+        table.AddRow("John", "Amsterdam");
+        table.AddRow("Jane", "Utrecht");
+
+        Assert.Throws<InvalidOperationException>(() => CreateProvider().For<Person>().CreateModel(table));
+    }
+
+    [Fact]
+    public void CreateModels_OnProvider_FromHorizontalTable_BuildsOnePerRow()
+    {
+        var table = new Table("Name", "City");
+        table.AddRow("John", "Amsterdam");
+        table.AddRow("Jane", "Utrecht");
+
+        var people = CreateProvider().CreateModels<Person>(table);
+
+        Assert.Equal(2, people.Count);
+        Assert.Equal("John", people[0].Name);
+        Assert.Equal("Amsterdam", people[0].City);
+        Assert.Equal("Jane", people[1].Name);
+        Assert.Equal("Utrecht", people[1].City);
+    }
+
+    [Fact]
+    public void CreateModels_OnProvider_FromVerticalFieldValueTable_ReturnsSingleElementList()
+    {
+        var table = new Table("Field", "Value");
+        table.AddRow("Name", "John");
+        table.AddRow("City", "Amsterdam");
+
+        var people = CreateProvider().CreateModels<Person>(table);
+
+        Assert.Single(people);
+        Assert.Equal("John", people[0].Name);
+        Assert.Equal("Amsterdam", people[0].City);
+    }
+
+    [Fact]
+    public void CreateModels_WithNamedBuilder_UsesThatBuilderForEveryRow()
+    {
+        var table = new Table("Name", "City");
+        table.AddRow("John", "Amsterdam");
+        table.AddRow("Jane", "Utrecht");
+
+        var people = CreateProvider().CreateModels<Person>(table, "dutch-person");
+
+        Assert.Equal(2, people.Count);
+        Assert.Equal("NL", people[0].Country);
+        Assert.Equal("NL", people[1].Country);
+    }
+
+    [Fact]
+    public void CreateModels_WithUnknownBuilderName_Throws()
+    {
+        var table = new Table("Name", "City");
+        table.AddRow("John", "Amsterdam");
+
+        Assert.Throws<KeyNotFoundException>(() =>
+            CreateProvider().CreateModels<Person>(table, "does-not-exist"));
+    }
+}

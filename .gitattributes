@@ -1,0 +1,19 @@
+# Normalize line endings: let Git handle CRLF/LF automatically
+* text=auto
+
+# Explicitly declare text files that should always be LF in the repo
+*.cs text
+*.csproj text
+*.sln text -crlf
+*.md text
+*.json text
+*.yml text
+*.yaml text
+*.feature text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.snk binary

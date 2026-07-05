@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <PackageReference Include="SpecFlow" Version="3.9.74" />
+    <!-- Override the vulnerable Newtonsoft.Json 9.0.1 that SpecFlow pulls in transitively (NU1903). -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
   <ItemGroup>

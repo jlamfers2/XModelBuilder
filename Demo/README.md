@@ -1,100 +1,98 @@
-# XModelBuilder Demo — Webshop + Reqnroll-integratietests
+# XModelBuilder Demo — Web Shop + Reqnroll integration tests
 
-Een realistische demo die laat zien hoe XModelBuilder testdata bouwt in end-to-end
-integratietests, volgens de-facto standaarden voor DI, drivers, scenariocontexts en
-een (test-)database.
+A realistic demo showing how XModelBuilder builds test data in end-to-end integration
+tests, following de-facto standards for DI, drivers, scenario contexts and a (test)
+database.
 
-## Projecten
+## Projects
 
-- **`XModelBuilder.Demo.Shop`** — een ASP.NET Core Web API (.NET 10, EF Core, SQL Server).
-  Bevat één niet-triviale object-graph: `Customer → Address[]/PaymentMethod[]`,
-  `Order → OrderLine[] → Product → Category` (self-referencing), plus owned
-  `OrderAddress`, `Payment` en `OrderStatusHistory[]`. Rol-gebaseerde autorisatie
-  (`Guest`/`Customer`/`WarehouseOperator`/`Admin`). `Program.cs` is de **applicatie-DI**.
-- **`XModelBuilder.Demo.Shop.IntegrationTests`** — Reqnroll-tests die de API in-process
-  draaien via `WebApplicationFactory<Program>`.
+- **`XModelBuilder.Demo.Shop`** — an ASP.NET Core Web API (.NET 10, EF Core, SQL Server).
+  It contains one non-trivial object graph: `Customer → Address[]/PaymentMethod[]`,
+  `Order → OrderLine[] → Product → Category` (self-referencing), plus an owned
+  `OrderAddress`, a `Payment` and `OrderStatusHistory[]`. Role-based authorization
+  (`Guest`/`Customer`/`WarehouseOperator`/`Admin`). `Program.cs` is the **application DI**.
+- **`XModelBuilder.Demo.Shop.IntegrationTests`** — Reqnroll tests that run the API
+  in-process via `WebApplicationFactory<Program>`.
 
-## Vier features, meerdere scenario's, meerdere rollen
+## Four features, multiple scenarios, multiple roles
 
-- `Domains/Ordering/Features/PlaceOrder.feature` — geldige bestelling, onvoldoende
-  voorraad, gast (401), kortingscode.
-- `Domains/Ordering/Features/FulfillOrder.feature` — magazijn verzendt betaalde order,
-  onbetaalde order geweigerd (409), klant mag niet verzenden (403).
-- `Domains/Catalog/Features/CatalogAndAccess.feature` — beheerder voegt product toe, klant
-  verboden (403), klant ziet andermans orders niet (403).
-- `Domains/Customers/Features/BuildCustomer.feature` — een klant wordt **geaggregeerd opgebouwd**:
-  eerst als persoon, daarna in aparte Gherkin-regels **uitgebreid** met een verzend- en
-  factuuradres via XModelBuilders `Extend` (zonder de builder-defaults opnieuw te draaien).
+- `Domains/Ordering/Features/PlaceOrder.feature` — a valid order, insufficient stock,
+  guest (401), a discount code.
+- `Domains/Ordering/Features/FulfillOrder.feature` — the warehouse ships a paid order,
+  an unpaid order is rejected (409), a customer may not ship (403).
+- `Domains/Catalog/Features/CatalogAndAccess.feature` — an admin adds a product, a customer
+  is forbidden (403), a customer cannot see another customer's orders (403).
+- `Domains/Customers/Features/BuildCustomer.feature` — a customer is **built up in aggregate**:
+  first as a person, then **extended** with a shipping and billing address in separate Gherkin
+  steps via XModelBuilder's `Extend` (without re-running the builder defaults).
 
-## Indeling: eerst per domein, dan per artefact (één class per bestand)
+## Layout: first by domain, then by artifact (one class per file)
 
-De tests zijn getrapt geordend: onder `Domains/` staat elk domein (Customers, Catalog,
-Ordering) met daaronder — voor zover van toepassing — vaste artefactmappen `Features`,
-`Drivers`, `Steps`, `Builders` en `Contexts`. `Common/` volgt dezelfde artefactindeling
-voor het gedeelde fundament. Elke class staat in een eigen bestand; elk domein heeft zijn
-**eigen scenariocontext**.
+The tests are organised in two tiers: under `Domains/` each domain (Customers, Catalog,
+Ordering) holds fixed artifact folders — where applicable — `Features`, `Drivers`, `Steps`,
+`Builders` and `Contexts`. `Common/` follows the same artifact split for the shared
+foundation. Every class lives in its own file; each domain has its **own scenario context**.
 
 ```
 Domains/
-  Customers/   Features · Steps · Builders · Contexts        (geen Drivers: bouwt modellen in-memory)
+  Customers/   Features · Steps · Builders · Contexts        (no Drivers: it builds models in-memory)
   Catalog/     Features · Drivers · Steps · Builders · Contexts
   Ordering/    Features · Drivers · Steps · Builders · Contexts
 Common/        Drivers · Steps · Contexts
-Support/       Infrastructure · Seeding · DI-registratie
+Support/       Infrastructure · Seeding · DI registration
 ```
 
-- `Common/` — het gedeelde fundament: `Drivers/` (generieke `ApiDriver` (HTTP+JSON+auth),
-  `AuthenticationDriver` en de optionele aggregatie-`ShopDriver`), `Steps/` (`CommonSteps`
-  met auth + generieke autorisatie-asserts, en `RoleMap`) en `Contexts/`
-  (`CurrentUserContext`, `HttpResponseContext`, `ApiResponse` en de optionele aggregatie-
+- `Common/` — the shared foundation: `Drivers/` (generic `ApiDriver` (HTTP+JSON+auth),
+  `AuthenticationDriver` and the optional aggregate `ShopDriver`), `Steps/` (`CommonSteps`
+  with auth + generic authorization asserts, and `RoleMap`) and `Contexts/`
+  (`CurrentUserContext`, `HttpResponseContext`, `ApiResponse` and the optional aggregate
   `ScenarioState`).
 - `Domains/Ordering/` — `Drivers/OrderApiDriver`, `Contexts/OrderContext`,
-  `Builders/` (`"order"` + `"address"`) en `Steps/` (`PlaceOrderSteps`, `FulfillOrderSteps`).
+  `Builders/` (`"order"` + `"address"`) and `Steps/` (`PlaceOrderSteps`, `FulfillOrderSteps`).
 - `Domains/Catalog/` — `CatalogApiDriver`, `CatalogContext`, `ProductBuilder`, `CatalogAccessSteps`.
-- `Domains/Customers/` — de rol-gebaseerde `Customer`-builders (`[ModelBuilder("customer"|
-  "warehouse"|"admin")]`) + de `"customerAddress"`-builder, `CustomerBuildContext` en de
-  `CustomerBuildSteps` van de geaggregeerde opbouw (geen eigen driver).
-- `Support/Infrastructure/` — `CustomWebApplicationFactory` (test-basis-DI),
-  `TestDatabase` (gedeelde connectie + transactie), `TestAuthHandler`.
-- `Support/Seeding/` — `DatabaseSeeder` bouwt de initiële dataset met XModelBuilder.
-- `Support/ShopModelBuilders.cs` — registreert de provider, **beide fakers** (XFaker +
-  Bogus) en alle builders; door **beide** DI-lagen hergebruikt.
-- `Support/ScenarioDependencies.cs` — de **scenario-specifieke DI** (Reqnroll MS DI-plugin).
+- `Domains/Customers/` — the role-based `Customer` builders (`[ModelBuilder("customer"|
+  "warehouse"|"admin")]`) + the `"customerAddress"` builder, `CustomerBuildContext` and the
+  `CustomerBuildSteps` of the aggregated build (no driver of its own).
+- `Support/Infrastructure/` — `CustomWebApplicationFactory` (test-base DI),
+  `TestDatabase` (shared connection + transaction), `TestAuthHandler`.
+- `Support/Seeding/` — `DatabaseSeeder` builds the initial dataset with XModelBuilder.
+- `Support/ShopModelBuilders.cs` — registers the provider, **both fakers** (XFaker + Bogus)
+  and all builders; reused by **both** DI layers.
+- `Support/ScenarioDependencies.cs` — the **scenario-specific DI** (Reqnroll MS DI plugin).
 
-De aggregatie-`ShopDriver`/`ScenarioState` bundelen de per-domein drivers/contexts voor
-stappen die meerdere domeinen combineren; ze wonen in `Common/` omdat ze niet bij één domein horen.
+The aggregate `ShopDriver`/`ScenarioState` bundle the per-domain drivers/contexts for steps
+that combine several domains; they live in `Common/` because they belong to no single domain.
 
-## Twee fakers naast elkaar (XFaker + Bogus)
+## Two fakers side by side (XFaker + Bogus)
 
-Beide fakers zijn tegelijk geregistreerd om te tonen dat ze samengaan zonder te botsen
-(hun tokens zijn genamespaced): **XFaker** levert deterministische product-SKU's, terwijl
-**Bogus** (locale `"nl"`) realistische Nederlandse namen, e-mailadressen en adressen genereert
-voor klanten en adressen.
+Both fakers are registered at once to show they coexist without colliding (their tokens are
+namespaced): **XFaker** produces deterministic product SKUs, while **Bogus** (locale `"nl"`)
+generates realistic Dutch names, e-mail addresses and addresses for customers and addresses.
 
-## Drie DI-lagen
+## Three DI layers
 
-1. **Applicatie** — `Program.cs` (EF Core + SQL Server, auth, services).
-2. **Test-basis** — `CustomWebApplicationFactory.ConfigureTestServices`: wisselt de
-   `ShopDbContext` naar de gedeelde testconnectie, vervangt auth door `TestAuthHandler`,
-   registreert XModelBuilder + geseede XFaker en Bogus (voor de seeder).
-3. **Scenario-specifiek** — `ScenarioDependencies` + hooks: per-scenario contexts, drivers
-   en een eigen XModelBuilder-provider (andere seed) voor het bouwen van requests in steps.
+1. **Application** — `Program.cs` (EF Core + SQL Server, auth, services).
+2. **Test base** — `CustomWebApplicationFactory.ConfigureTestServices`: rewires the
+   `ShopDbContext` onto the shared test connection, replaces auth with `TestAuthHandler`,
+   and registers XModelBuilder + seeded XFaker and Bogus (for the seeder).
+3. **Scenario-specific** — `ScenarioDependencies` + hooks: per-scenario contexts, drivers
+   and an XModelBuilder provider of their own (a different seed) for building requests in steps.
 
 ## Storage & reset (performance)
 
-- **SQL Server LocalDB** (`(localdb)\MSSQLLocalDB`, database `XModelBuilderDemoTests`),
-  zodat je de data tijdens debuggen in SSMS/Azure Data Studio kunt inzien.
-- Schema wordt 1× opgebouwd, de **seed 1× gecommit** als baseline.
-- **Per scenario** loopt alles door **één gedeelde `SqlConnection`** binnen een transactie
-  die na afloop wordt teruggedraaid (`[BeforeScenario]`/`[AfterScenario]`), zodat de store
-  terug is op de seed. Één fysieke connectie ⇒ geen MSDTC-promotie op LocalDB.
-- Scenario's draaien **sequentieel** (xUnit-parallelisatie staat uit): de gedeelde
-  connectie is niet thread-safe.
+- **SQL Server LocalDB** (`(localdb)\MSSQLLocalDB`, database `XModelBuilderDemoTests`), so
+  you can inspect the data in SSMS/Azure Data Studio while debugging.
+- The schema is created once and the **seed is committed once** as the baseline.
+- **Per scenario** everything runs through **one shared `SqlConnection`** inside a
+  transaction that is rolled back afterwards (`[BeforeScenario]`/`[AfterScenario]`), so the
+  store is reset to the seed. A single physical connection means no MSDTC promotion on LocalDB.
+- Scenarios run **sequentially** (xUnit parallelization is disabled): the shared connection
+  is not thread-safe.
 
-## Draaien
+## Running
 
 ```powershell
 dotnet test Demo/XModelBuilder.Demo.Shop.IntegrationTests
 ```
 
-Vereist een lokale **SQL Server LocalDB** (`sqllocaldb info` toont `MSSQLLocalDB`).
+Requires a local **SQL Server LocalDB** (`sqllocaldb info` shows `MSSQLLocalDB`).

@@ -16,13 +16,13 @@ database.
 
 ## Four features, multiple scenarios, multiple roles
 
-- `Domains/Ordering/Features/BestellingPlaatsen.feature` — a valid order, insufficient stock,
+- `Domains/Ordering/Features/PlaceOrder.feature` — a valid order, insufficient stock,
   guest (401), a discount code.
-- `Domains/Ordering/Features/BestellingUitleveren.feature` — the warehouse ships a paid order,
+- `Domains/Ordering/Features/FulfillOrder.feature` — the warehouse ships a paid order,
   an unpaid order is rejected (409), a customer may not ship (403).
-- `Domains/Catalog/Features/CatalogusEnToegang.feature` — an admin adds a product, a customer
+- `Domains/Catalog/Features/CatalogAndAccess.feature` — an admin adds a product, a customer
   is forbidden (403), a customer cannot see another customer's orders (403).
-- `Domains/Customers/Features/KlantSamenstellen.feature` — a customer is **built up in aggregate**:
+- `Domains/Customers/Features/BuildCustomer.feature` — a customer is **built up in aggregate**:
   first as a person, then **extended** with a shipping and billing address in separate Gherkin
   steps via XModelBuilder's `Extend` (without re-running the builder defaults).
 

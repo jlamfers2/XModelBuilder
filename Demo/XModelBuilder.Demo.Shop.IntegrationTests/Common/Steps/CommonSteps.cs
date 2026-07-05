@@ -8,18 +8,18 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Common;
 [Binding]
 public sealed class CommonSteps(AuthenticationDriver authentication, HttpResponseContext response)
 {
-    [Given(@"ik ben ingelogd als (klant|magazijnmedewerker|beheerder) ""(.*)""")]
-    [When(@"ik ben ingelogd als (klant|magazijnmedewerker|beheerder) ""(.*)""")]
+    [Given(@"I am logged in as (customer|warehouse operator|admin) ""(.*)""")]
+    [When(@"I am logged in as (customer|warehouse operator|admin) ""(.*)""")]
     public void SignIn(string role, string email) => authentication.SignInAs(email, RoleMap.ToRole(role));
 
-    [Given(@"ik ben niet ingelogd")]
+    [Given(@"I am not logged in")]
     public void SignedOut() => authentication.SignOut();
 
-    [Then(@"word ik afgewezen als niet-geautoriseerd")]
+    [Then(@"I am rejected as unauthorized")]
     public void ThenUnauthorized() =>
         Assert.Equal(HttpStatusCode.Unauthorized, response.Require().StatusCode);
 
-    [Then(@"word ik afgewezen als verboden")]
+    [Then(@"I am rejected as forbidden")]
     public void ThenForbidden() =>
         Assert.Equal(HttpStatusCode.Forbidden, response.Require().StatusCode);
 }

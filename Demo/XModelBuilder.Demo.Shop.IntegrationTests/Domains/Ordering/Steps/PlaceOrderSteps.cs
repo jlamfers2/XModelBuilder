@@ -21,14 +21,14 @@ public sealed class PlaceOrderSteps(
     OrderContext orderContext,
     HttpResponseContext response)
 {
-    [When(@"ik de volgende bestelling plaats:")]
+    [When(@"I place the following order:")]
     public async Task WhenIPlaceTheOrder(Table table)
     {
         var request = xmodels.For<PlaceOrderRequest>("order").CreateModel(table);
         await orders.PlaceOrder(request);
     }
 
-    [Then(@"wordt de bestelling aangemaakt")]
+    [Then(@"the order is created")]
     public void ThenOrderIsCreated()
     {
         var result = response.Require();
@@ -36,19 +36,19 @@ public sealed class PlaceOrderSteps(
         orderContext.Current = result.Read<OrderResponse>();
     }
 
-    [Then(@"heeft de bestelling status ""(.*)""")]
+    [Then(@"the order has status ""(.*)""")]
     public void ThenOrderHasStatus(string status) =>
         Assert.Equal(Enum.Parse<OrderStatus>(status), orderContext.Current!.Status);
 
-    [Then(@"is het totaalbedrag (.*)")]
+    [Then(@"the total amount is (.*)")]
     public void ThenTotalIs(string expected) =>
         Assert.Equal(Parse(expected), orderContext.Current!.TotalAmount);
 
-    [Then(@"is het kortingsbedrag (.*)")]
+    [Then(@"the discount amount is (.*)")]
     public void ThenDiscountIs(string expected) =>
         Assert.Equal(Parse(expected), orderContext.Current!.DiscountAmount);
 
-    [Then(@"wordt de bestelling geweigerd wegens onvoldoende voorraad")]
+    [Then(@"the order is rejected due to insufficient stock")]
     public void ThenRejectedForStock()
     {
         var result = response.Require();

@@ -18,20 +18,20 @@ public sealed class FulfillOrderSteps(
     OrderContext orderContext,
     HttpResponseContext response)
 {
-    [Given(@"ik een betaalde bestelling heb geplaatst voor (\d+) x ""(.*)""")]
+    [Given(@"I have placed a paid order for (\d+) x ""(.*)""")]
     public async Task GivenIHavePaidOrder(int quantity, string sku)
     {
         await PlaceOrder(quantity, sku);
         await Pay();
     }
 
-    [Given(@"ik een bestelling heb geplaatst voor (\d+) x ""(.*)""")]
+    [Given(@"I have placed an order for (\d+) x ""(.*)""")]
     public async Task GivenIHaveOrder(int quantity, string sku) => await PlaceOrder(quantity, sku);
 
-    [When(@"ik de bestelling verzend")]
+    [When(@"I ship the order")]
     public async Task WhenIShipTheOrder() => await orders.Ship(orderContext.CurrentId);
 
-    [Then(@"wordt de verzending geaccepteerd")]
+    [Then(@"the shipment is accepted")]
     public void ThenShipmentAccepted()
     {
         var result = response.Require();
@@ -39,7 +39,7 @@ public sealed class FulfillOrderSteps(
         orderContext.Current = result.Read<OrderResponse>();
     }
 
-    [Then(@"wordt de verzending geweigerd")]
+    [Then(@"the shipment is rejected")]
     public void ThenShipmentRejected() =>
         Assert.Equal(HttpStatusCode.Conflict, response.Require().StatusCode);
 

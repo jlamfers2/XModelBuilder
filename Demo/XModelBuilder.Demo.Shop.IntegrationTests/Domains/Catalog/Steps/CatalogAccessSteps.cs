@@ -17,14 +17,14 @@ public sealed class CatalogAccessSteps(
     CatalogContext catalogContext,
     HttpResponseContext response)
 {
-    [When(@"ik het volgende product toevoeg:")]
+    [When(@"I add the following product:")]
     public async Task WhenIAddTheProduct(Table table)
     {
         var request = xmodels.For<CreateProductRequest>().CreateModel(table);
         await catalog.AddProduct(request);
     }
 
-    [Then(@"wordt het product toegevoegd")]
+    [Then(@"the product is added")]
     public void ThenProductIsAdded()
     {
         var result = response.Require();
@@ -32,7 +32,7 @@ public sealed class CatalogAccessSteps(
         catalogContext.LastCreated = result.Read<ProductResponse>();
     }
 
-    [Then(@"bevat de catalogus een product met sku ""(.*)""")]
+    [Then(@"the catalog contains a product with sku ""(.*)""")]
     public async Task ThenCatalogContains(string sku)
     {
         var result = await catalog.GetProducts();
@@ -40,6 +40,6 @@ public sealed class CatalogAccessSteps(
         Assert.Contains(products, p => p.Sku == sku);
     }
 
-    [When(@"ik de bestellingen opvraag van ""(.*)""")]
+    [When(@"I request the orders of ""(.*)""")]
     public async Task WhenIRequestOrdersOf(string email) => await orders.GetCustomerOrders(email);
 }

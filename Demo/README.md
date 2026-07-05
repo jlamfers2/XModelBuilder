@@ -16,13 +16,13 @@ een (test-)database.
 
 ## Vier features, meerdere scenario's, meerdere rollen
 
-- `Domains/Ordering/Features/BestellingPlaatsen.feature` — geldige bestelling, onvoldoende
+- `Domains/Ordering/Features/PlaceOrder.feature` — geldige bestelling, onvoldoende
   voorraad, gast (401), kortingscode.
-- `Domains/Ordering/Features/BestellingUitleveren.feature` — magazijn verzendt betaalde order,
+- `Domains/Ordering/Features/FulfillOrder.feature` — magazijn verzendt betaalde order,
   onbetaalde order geweigerd (409), klant mag niet verzenden (403).
-- `Domains/Catalog/Features/CatalogusEnToegang.feature` — beheerder voegt product toe, klant
+- `Domains/Catalog/Features/CatalogAndAccess.feature` — beheerder voegt product toe, klant
   verboden (403), klant ziet andermans orders niet (403).
-- `Domains/Customers/Features/KlantSamenstellen.feature` — een klant wordt **geaggregeerd opgebouwd**:
+- `Domains/Customers/Features/BuildCustomer.feature` — een klant wordt **geaggregeerd opgebouwd**:
   eerst als persoon, daarna in aparte Gherkin-regels **uitgebreid** met een verzend- en
   factuuradres via XModelBuilders `Extend` (zonder de builder-defaults opnieuw te draaien).
 

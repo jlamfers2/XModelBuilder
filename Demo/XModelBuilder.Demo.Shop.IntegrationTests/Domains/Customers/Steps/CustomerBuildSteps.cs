@@ -15,34 +15,34 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
 [Binding]
 public sealed class CustomerBuildSteps(IModelBuilderProvider xmodels, CustomerBuildContext customer)
 {
-    [Given(@"ik bouw een klant op als persoon:")]
+    [Given(@"I start building a customer as a person:")]
     public void GivenIStartAsPerson(Table table) =>
         customer.Current = xmodels.For<Customer>("customer").CreateModel(table);
 
-    [When(@"ik de klant uitbreid met een verzendadres:")]
-    [Given(@"ik de klant uitbreid met een verzendadres:")]
+    [When(@"I extend the customer with a shipping address:")]
+    [Given(@"I extend the customer with a shipping address:")]
     public void ExtendWithShippingAddress(Table table) => ExtendWithAddress(AddressKind.Shipping, table);
 
-    [When(@"ik de klant uitbreid met een factuuradres:")]
-    [Given(@"ik de klant uitbreid met een factuuradres:")]
+    [When(@"I extend the customer with a billing address:")]
+    [Given(@"I extend the customer with a billing address:")]
     public void ExtendWithBillingAddress(Table table) => ExtendWithAddress(AddressKind.Billing, table);
 
-    [Then(@"heeft de klant (\d+) adres(?:sen)?")]
+    [Then(@"the customer has (\d+) address(?:es)?")]
     public void ThenCustomerHasAddresses(int count) =>
         Assert.Equal(count, customer.Require().Addresses.Count);
 
-    [Then(@"heeft de klant een (verzend|factuur)adres in ""(.*)""")]
+    [Then(@"the customer has a (shipping|billing) address in ""(.*)""")]
     public void ThenCustomerHasAddressInCity(string kindWord, string city)
     {
-        var kind = kindWord == "verzend" ? AddressKind.Shipping : AddressKind.Billing;
+        var kind = kindWord == "shipping" ? AddressKind.Shipping : AddressKind.Billing;
         Assert.Contains(customer.Require().Addresses, a => a.Kind == kind && a.City == city);
     }
 
-    [Then(@"heet de klant ""(.*)""")]
+    [Then(@"the customer is named ""(.*)""")]
     public void ThenCustomerIsNamed(string fullName) =>
         Assert.Equal(fullName, customer.Require().FullName);
 
-    [Then(@"heeft de klant een gegenereerd e-mailadres")]
+    [Then(@"the customer has a generated email address")]
     public void ThenCustomerHasGeneratedEmail() =>
         Assert.Contains("@", customer.Require().Email);
 

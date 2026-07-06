@@ -26,10 +26,19 @@ jobs:
 
       # Only the unit-test projects run here. The demo integration tests
       # (Demo/XModelBuilder.Demo.Shop.IntegrationTests) need SQL Server and
-      # are intentionally excluded from CI.
+      # are intentionally excluded from CI. Each run collects line/branch
+      # coverage (coverlet) into ./coverage as Cobertura XML.
       - name: Test
         run: |
-          dotnet test XModelBuilder.UnitTests            -c Release --no-build --verbosity normal
-          dotnet test XModelBuilder.Fakers.UnitTests     -c Release --no-build --verbosity normal
-          dotnet test XModelBuilder.Reqnroll.UnitTests   -c Release --no-build --verbosity normal
-          dotnet test XModelBuilder.SpecFlow.UnitTests   -c Release --no-build --verbosity normal
+          dotnet test XModelBuilder.UnitTests            -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+          dotnet test XModelBuilder.Fakers.UnitTests     -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+          dotnet test XModelBuilder.Reqnroll.UnitTests   -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+          dotnet test XModelBuilder.SpecFlow.UnitTests   -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: ./coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

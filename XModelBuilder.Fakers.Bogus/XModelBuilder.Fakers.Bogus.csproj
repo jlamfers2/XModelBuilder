@@ -7,7 +7,7 @@
     <IsPackable>true</IsPackable>
     <Title>XModelBuilder Bogus integration</Title>
     <Description>Bogus integration for XModelBuilder. Register with AddBogusFaker(seed) to use Bogus as the faker backing XModelBuilder's faker tokens.</Description>
-    <PackageTags>testdata;test-data;testing;faker;bogus;fake-data;xmodelbuilder;dotnet</PackageTags>
+    <PackageTags>testdata;test-data;test-data-builder;object-mother;builder-pattern;testing;unit-testing;integration-testing;deterministic;fluent;fixture;faker;bogus;fake-data;xmodelbuilder;dotnet</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

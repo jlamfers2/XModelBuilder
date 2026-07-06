@@ -7,7 +7,7 @@
     <IsPackable>true</IsPackable>
     <Title>XModelBuilder Reqnroll integration</Title>
     <Description>Reqnroll Gherkin table integration for XModelBuilder. Adds CreateModel(s)&lt;T&gt; extensions to turn Reqnroll tables into models.</Description>
-    <PackageTags>testdata;test-data;testing;reqnroll;gherkin;bdd;specflow;xmodelbuilder;dotnet</PackageTags>
+    <PackageTags>testdata;test-data;test-data-builder;object-mother;builder-pattern;testing;unit-testing;integration-testing;deterministic;fluent;fixture;reqnroll;gherkin;bdd;xmodelbuilder;dotnet</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

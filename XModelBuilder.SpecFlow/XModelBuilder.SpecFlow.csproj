@@ -7,7 +7,7 @@
     <IsPackable>true</IsPackable>
     <Title>XModelBuilder SpecFlow integration</Title>
     <Description>SpecFlow Gherkin table integration for XModelBuilder. Adds CreateModel(s)&lt;T&gt; extensions to turn SpecFlow tables into models.</Description>
-    <PackageTags>testdata;test-data;testing;specflow;gherkin;bdd;xmodelbuilder;dotnet</PackageTags>
+    <PackageTags>testdata;test-data;test-data-builder;object-mother;builder-pattern;testing;unit-testing;integration-testing;deterministic;fluent;fixture;specflow;gherkin;bdd;xmodelbuilder;dotnet</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

@@ -7,7 +7,7 @@
     <IsPackable>true</IsPackable>
     <Title>XModelBuilder XFaker</Title>
     <Description>Dependency-free deterministic faker for XModelBuilder. Register with AddXFaker(seed) for reproducible fake values without external dependencies.</Description>
-    <PackageTags>testdata;test-data;testing;faker;fake-data;deterministic;xmodelbuilder;dotnet</PackageTags>
+    <PackageTags>testdata;test-data;test-data-builder;object-mother;builder-pattern;testing;unit-testing;integration-testing;deterministic;fluent;fixture;faker;fake-data;xmodelbuilder;dotnet</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

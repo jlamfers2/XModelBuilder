@@ -60,7 +60,8 @@ voor API-details, algoritmes en randgevallen; werk het bij als gedrag verandert.
   `<param>`/`<typeparam>` voor elke parameter/typeparameter, `<returns>` bij een returnwaarde,
   en `<exception>` voor elke exceptie die als onderdeel van het contract wordt gegooid. `internal`/
   `private` members mogen kort of ongedocumenteerd blijven. (Bestaande files vul je aan wanneer je
-  ze toch aanraakt.)
+  ze toch aanraakt.) **Uitzondering:** test-projecten (`*.UnitTests`) — daar volstaan sprekende
+  testnamen + de AAA-comments; XML-doc-headers op testmethodes/-helpers zijn niet nodig.
 - `XModelBuilder` heeft `InternalsVisibleTo` naar `XModelBuilder.UnitTests`, dus `internal`
   types (Core-laag) zijn daar direct testbaar.
 - Kernproject hangt bewust aan de **volledige** `Microsoft.Extensions.DependencyInjection`

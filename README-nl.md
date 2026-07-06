@@ -1,9 +1,64 @@
 # XModelBuilder - Gebruikershandleiding & Technische Specificatie
 
 [![CI](https://github.com/jlamfers2/XModelBuilder/actions/workflows/ci.yml/badge.svg)](https://github.com/jlamfers2/XModelBuilder/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/jlamfers2/XModelBuilder/branch/main/graph/badge.svg)](https://codecov.io/gh/jlamfers2/XModelBuilder)
 [![NuGet](https://img.shields.io/nuget/v/XModelBuilder.svg?logo=nuget)](https://www.nuget.org/packages/XModelBuilder)
 [![Downloads](https://img.shields.io/nuget/dt/XModelBuilder.svg?logo=nuget)](https://www.nuget.org/packages/XModelBuilder)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+**Deterministische testdata voor .NET — zonder voor elke klasse een builder te schrijven.**
+
+XModelBuilder geeft je out of the box een fluent Test Data Builder voor *elke* C#-klasse:
+constructor-parameters, init-only properties, read-only members, private backing
+fields — het werkt gewoon. Configureer waarden met sterk getypeerde lambda's in code, of
+met complete Gherkin-tabellen in je BDD-scenario's, en laat seeded fakers (inclusief
+Bogus) de rest invullen, volledig reproduceerbaar.
+
+```csharp
+var order = xprovider.For<Order>()
+    .With(x => x.Id, provider => provider.XFake().NewGuid())
+    .With(x => x.Customer.Name, provider => provider.Bogus().Company.CompanyName())
+    .With(x => x.OrderDate, new DateTime(2026, 7, 1))
+    .With(x => x.Lines[0].Product, provider => provider.Use<MyProductBuilder>().Build())
+    .With(x => x.Lines[0].Quantity, 3)
+    .Build();
+```
+
+BDD-tests aan het schrijven? Voer een Gherkin-tabel rechtstreeks in een model — dot-paden,
+indexers, typeconversie en faker-tokens werken allemaal binnen de tabel:
+
+```gherkin
+Given the following order:
+  | Id              | Customer.Name               | OrderDate  | Lines[0].Product | Lines[0].Quantity |
+  | xfake.NewGuid() | bogus.company.companyName() | 2026-07-01 | MyProduct        | 3                 |
+```
+
+```csharp
+[Given("the following order:")]
+public void GivenTheFollowingOrder(Table table)
+    => _order = _xprovider.For<Order>().CreateModel(table);
+```
+
+**Waarom XModelBuilder?**
+
+- 🧱 Eén generieke basisklasse bouwt *elk* model — geen handgeschreven builders nodig
+- 🎲 Deterministisch van opzet: seeded fakers, stabiele naam-gebaseerde GUID's, door `TimeProvider` gestuurde datums
+- 📋 First-class Reqnroll- & SpecFlow-integraties: Gherkin-tabellen worden objectgrafen
+- 🔤 Een mini-datataal maakt van gewone strings arrays, dictionaries en geneste objecten
+- 🔌 Werkt met `Microsoft.Extensions.DependencyInjection` *of* volledig standalone
+
+```
+Install-Package XModelBuilder
+```
+
+De seeded fakers uit de voorbeelden hierboven worden geleverd als losse packages (zie hoofdstuk 21):
+
+```
+Install-Package XModelBuilder.Fakers.XFaker   # xfake.*-tokens + .XFake()-extensie
+Install-Package XModelBuilder.Fakers.Bogus    # bogus.*-tokens + .Bogus()-extensie
+```
+
+## Over dit document
 
 Dit document beschrijft (1) hoe je XModelBuilder gebruikt als consument van de
 library, en (2) hoe de library intern werkt, tot op het niveau van algoritmes
@@ -42,7 +97,7 @@ XModelBuilder.SpecFlow (zie hoofdstuk 18).
 
 ## 1. Wat is XModelBuilder?
 
-XModelBuilder is een reflectiegebaseerd framework voor het bouwen en genereren van deterministische testdata in .NET. Het combineert de patronen Object Mother en Test Data Builder met een orchestration-laag, zodat je op een fluente manier objectgrafen kunt samenstellen zonder voor iedere modelklasse handmatig builders te hoeven schrijven.
+XModelBuilder is een reflectiegebaseerd framework voor het bouwen en genereren van deterministische testdata in .NET. Het combineert de patronen Object Mother en Test Data Builder met een orchestration-laag, zodat je op een fluent manier objectgrafen kunt samenstellen zonder voor iedere modelklasse handmatig builders te hoeven schrijven.
 
 Het framework ondersteunt zowel handmatig geconfigureerde als automatisch gegenereerde testdata en kan worden geïntegreerd met faker-libraries zoals Bogus, waarvan de integratie standaard wordt meegeleverd. XModelBuilder fungeert daarbij als centrale orchestrator die builders, gegenereerde gegevens en scenario-specifieke configuratie samenbrengt tot reproduceerbare en onderhoudbare testdatasets.
 
@@ -190,7 +245,7 @@ public class Person
 Bouwen via lambda-expressies (sterk getypeerd):
 
 ```csharp
-var person = xmodels.For<Person>()
+var person = xprovider.For<Person>()
     .With(x => x.Name, "John")
     .With(x => x.City, "Amsterdam")
     .With(x => x.Options, ["noot"])
@@ -204,8 +259,8 @@ Een builder-instantie kun je ook eerst opvragen en dan apart `Build()`-en, en
 het resultaat als waarde meegeven - functioneel identiek aan de vorige regel:
 
 ```csharp
-var address = xmodels.Use<ComplexAddressBuilder>().Build();
-var person = xmodels.For<Person>()
+var address = xprovider.Use<ComplexAddressBuilder>().Build();
+var person = xprovider.For<Person>()
     .With(x => x.Name, "John")
     .With(x => x.Address, address)
     .Build();
@@ -214,7 +269,7 @@ var person = xmodels.For<Person>()
 Bouwen via string-paden (bijvoorbeeld vanuit een testdata-tabel of CSV):
 
 ```csharp
-var person = xmodels.For<Person>()
+var person = xprovider.For<Person>()
     .With("Name", "John")
     .With("City", "Amsterdam")
     .With("Options", "[noot]")
@@ -226,7 +281,7 @@ Of - als er een builder genaamd `"complex-adres"` geregistreerd staat voor
 `Address` - door simpelweg die naam als waarde te geven:
 
 ```csharp
-var person = xmodels.For<Person>()
+var person = xprovider.For<Person>()
     .With("Name", "John")
     .With("Address", "complex-adres")
     .Build();
@@ -304,8 +359,8 @@ zijn per modeltype. De naam bepaalt NIET de default (er is geen speciale naam
 [ModelBuilder("complex-adres")]
 public sealed class ComplexAddressBuilder(
         IOptions<ModelBuilderOptions> options,
-        IModelBuilderProvider xmodels)
-    : ModelBuilder<ComplexAddressBuilder, Address>(options, xmodels)
+        IModelBuilderProvider xprovider)
+    : ModelBuilder<ComplexAddressBuilder, Address>(options, xprovider)
 {
     protected override void SetDefaults()
     {
@@ -326,7 +381,7 @@ services
     .UseAsDefaultModelBuilder<SimpleAddressBuilder>(); // 'simpel' is de default voor Address
 ```
 
-Resolutie van `xmodels.For<TModel>()` / `xmodels.For(Type)`:
+Resolutie van `xprovider.For<TModel>()` / `xprovider.For(Type)`:
 
 1. **0 builders** voor dat modeltype → de generieke open-generic fallback
    (`DefaultModelBuilder<>`, of een via `SetDefaultModelBuilder` aangepaste
@@ -339,8 +394,9 @@ Resolutie van `xmodels.For<TModel>()` / `xmodels.For(Type)`:
 Wil je EXPLICIET een specifiek genaamde builder gebruiken, ongeacht de default:
 
 ```csharp
-xmodels.For<Address>("complex-adres")        // of
-xmodels.For(typeof(Address), "complex-adres")
+xprovider.For<Address>("complex-adres")        // of
+xprovider.For(typeof(Address), "complex-adres") // of
+xprovider.Use<ComplexAddressBuilder>()
 ```
 
 Dit zoekt de builder met EXACT die (unieke) naam, hoofdletter-ongevoelig en
@@ -375,7 +431,7 @@ builder - zie hoofdstuk 10 ("named builder reference").
 Zet een waarde direct. Werkt op zowel ondiepe (`x => x.Naam`) als diepe
 paden (`x => x.Adres.Straat`) en op array/list-indexering
 (`x => x.Regels[0].Aantal`). De waarde mag ook het resultaat zijn van een
-los opgevraagde builder, bv. `xmodels.Use<ComplexAddressBuilder>().Build()`.
+los opgevraagde builder, bv. `xprovider.Use<ComplexAddressBuilder>().Build()`.
 
 **b) `With<TValue>(Expression<Func<TModel,TValue>> getter, Func<TValue?> valueFactory)`**
 Als (a), maar de waarde wordt lazy berekend op het moment van `Build()`
@@ -385,7 +441,7 @@ Als (a), maar de waarde wordt lazy berekend op het moment van `Build()`
 Voor geneste modellen: geeft je een builder voor het type van de
 geneste property, die je verder configureert; het resultaat van diens
 `Build()` wordt de waarde. Intern is dit niets anders dan variant (b) met
-`() => builder(xmodels.For<TValue>()).Build()` als value-factory.
+`() => builder(xprovider.For<TValue>()).Build()` als value-factory.
 
 **d) `With(string memberPath, string? value)`**
 Zet een waarde via een tekstueel pad (zie hoofdstuk 7) en een tekstuele
@@ -404,7 +460,7 @@ anders wordt het een deep-path-instelling.
 Lambda-equivalent van de named-builder-reference-syntax (hoofdstuk 5/10):
 zet de property op het resultaat van het bouwen van de builder die
 geregistreerd staat onder `[ModelBuilder(builderName)]` voor `TValue`, dus
-functioneel gelijk aan `With(getter, () => xmodels.For<TValue>(builderName).Build())`.
+functioneel gelijk aan `With(getter, () => xprovider.For<TValue>(builderName).Build())`.
 Dit is BEWUST een eigen methode, geen overload van `With`: een generieke
 `With<TValue>(getter, string)` overload zou ambigu zijn met
 `With<TValue>(getter, TValue value)` zodra `TValue` zelf `string` is (en dat
@@ -412,7 +468,7 @@ is precies het meest voorkomende `With`-patroon, bv. `With(x => x.Naam, "John")`
 
 **g) `With<TValue>(Expression<Func<TModel,TValue>> getter, Func<IModelBuilderProvider,TValue?> valueFactory)`**
 Als (b), maar de factory krijgt de builder's EIGEN `IModelBuilderProvider`
-(`_xmodels`) als argument, in plaats van dat je die uit een omsluitende
+(`_xprovider`) als argument, in plaats van dat je die uit een omsluitende
 scope moet closure-capturen. Dat is meer dan syntactische suiker: een
 HERBRUIKBARE factory-functie (bv. een setje "fake value"-factories dat je
 los van een specifieke test/provider deelt) loopt anders het risico een
@@ -793,7 +849,7 @@ Gebruik via tokens (overal waar een string-waarde wordt geconverteerd):
 Gebruik GETYPEERD, rechtstreeks in C#:
 
 ```csharp
-var age = xmodels.Faker<PersonFakers>().AgeBetween(1, 20);
+var age = xprovider.Faker<PersonFakers>().AgeBetween(1, 20);
 // standalone/ambient-variant (zie hoofdstuk 14):
 var age2 = Use.Faker<PersonFakers>().AgeBetween(1, 20);
 ```
@@ -881,7 +937,7 @@ Zichtbaarheidsregels (welke methoden tellen mee voor token-dispatch):
   voor getypeerd aanroepen:
 
 ```csharp
-xmodels.Faker<MyFakers>().Create<Address>()
+xprovider.Faker<MyFakers>().Create<Address>()
 ```
 
 Deep-path faker-resolutie (geneste member-paden):
@@ -942,7 +998,7 @@ token (inclusief faker-aanroepen) is gezet, wordt bij ELKE `Build()`-
 aanroep OPNIEUW geëvalueerd - dus dat deel kan wél per instance variëren:
 
 ```csharp
-var people = xmodels.For<Person>()
+var people = xprovider.For<Person>()
     .With(p => p.City, "Amsterdam")           // gedeeld door alle 5
     .With("Name", "RandomFirstName()")         // 5x een andere naam
     .BuildMany(5);
@@ -956,7 +1012,7 @@ provider (b) hieronder - dezelfde signatuur, maar deze hergebruikt de builder in
 plaats van per index een verse te resolven:
 
 ```csharp
-var people = xmodels.For<Person>()
+var people = xprovider.For<Person>()
     .With(p => p.City, "Amsterdam")                              // gedeelde basis, voor allemaal
     .BuildMany(3, (b, i) => b.With(p => p.Name, $"Person{i}"));  // per-index aanpassing
 ```
@@ -978,11 +1034,11 @@ hoofdstuk 5), plus optioneel de (nulgebaseerde) index om per instance te
 configureren:
 
 ```csharp
-var people = xmodels.BuildMany<Person>(5, (b, i) => b
+var people = xprovider.BuildMany<Person>(5, (b, i) => b
     .With(p => p.Name, $"Person{i}")
     .With(p => p.Address, new Address()));
 
-var dutchPeople = xmodels.BuildMany<Person>(5, "dutch-person", (b, i) => b
+var dutchPeople = xprovider.BuildMany<Person>(5, "dutch-person", (b, i) => b
     .With(p => p.Name, $"Person{i}"));
 ```
 
@@ -1018,9 +1074,9 @@ Zo bouw je een model op over MEERDERE datasets (bv. meerdere Gherkin-tabellen)
 zonder alles in één tabel te wurmen: bouw de basis, en vul die later aan.
 
 ```csharp
-var order = xmodels.For<Order>().With(o => o.KlantNaam, "Alice").Build(); // basis
+var order = xprovider.For<Order>().With(o => o.KlantNaam, "Alice").Build(); // basis
 
-xmodels.For<Order>()
+xprovider.For<Order>()
     .With(o => o.Betaalwijze, Betaalwijze.OpRekening)
     .Extend(order);   // past dit toe OP order en geeft order terug
 ```
@@ -1043,7 +1099,7 @@ Eigenschappen (zo intuïtief mogelijk gehouden):
 
 Voor de Gherkin-integratie is er een handige variant op de provider die één
 geneste member uit een eigen tabel bouwt en op de bestaande instance zet - zie
-hoofdstuk 18 (`xmodels.Extend(instance, x => x.Adres, table)`).
+hoofdstuk 18 (`xprovider.Extend(instance, x => x.Adres, table)`).
 
 ## 13. Eigen ModelBuilders schrijven
 
@@ -1057,8 +1113,8 @@ aanpassen.
 [ModelBuilder]   // optioneel; zonder attribuut heeft de builder geen naam
 public sealed class PersonBuilder(
         IOptions<ModelBuilderOptions> options,
-        IModelBuilderProvider xmodels)
-    : ModelBuilder<PersonBuilder, Person>(options, xmodels)
+        IModelBuilderProvider xprovider)
+    : ModelBuilder<PersonBuilder, Person>(options, xprovider)
 {
     protected override void SetDefaults()
     {
@@ -1324,7 +1380,7 @@ public interface IModelBuilderProvider
     TModelBuilder Use<TModelBuilder>() where TModelBuilder : IModelBuilder;
     IModelBuilder Use(Type modelBuilderType);
     // Verse, ingebouwde DefaultModelBuilder<TModel> - langs elke (custom/fallback) registratie heen.
-    IModelBuilder<TModel> NewDefaultModelBuilder<TModel>() where TModel : class;
+    IModelBuilder<TModel> ForEmpty<TModel>() where TModel : class;
     TFaker Faker<TFaker>() where TFaker : IFaker;
     // GEEN InvokeFaker hier - dat is internal-only plumbing, zie
     // Core/IFakerInvocationSource.cs (hoofdstuk 16).
@@ -1355,7 +1411,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     where TModel : class
     where TBuilder : ModelBuilder<TBuilder, TModel>
 {
-    protected ModelBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels);
+    protected ModelBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider);
     protected abstract void SetDefaults();
     public virtual TModel Build();
     public TModel Extend(TModel instance);   // hoofdstuk 12.1
@@ -1504,7 +1560,7 @@ gaat verder in de fluent chain. Zo vul je een geneste member uit zijn EIGEN
 tabel:
 
 ```csharp
-var klant = xmodels.For<Klant>()
+var klant = xprovider.For<Klant>()
     .With(k => k.Naam, "Alice")
     .WithValue(k => k.Adres, adresTabel)   // Adres uit een aparte tabel
     .Build();
@@ -1515,18 +1571,18 @@ AL GEBOUWDE instance, en geeft die terug - handig om een model over meerdere
 Gherkin-stappen/tabellen samen te stellen:
 
 ```csharp
-xmodels.Extend(klant, k => k.Adres, adresTabel);   // zet alleen klant.Adres
+xprovider.Extend(klant, k => k.Adres, adresTabel);   // zet alleen klant.Adres
 ```
 
 Belangrijk: deze `Extend` past de set toe via een VERS geconstrueerde,
-ingebouwde `DefaultModelBuilder<TModel>` (`provider.NewDefaultModelBuilder<TModel>()`) -
+ingebouwde `DefaultModelBuilder<TModel>` (`provider.ForEmpty<TModel>()`) -
 NIET via `TModel`'s eigen (custom) builder. Daardoor draaien de `SetDefaults`/
 `Build()`-override van die builder NIET mee: er wordt gegarandeerd alléén die
 ene member gezet, zonder dat andere velden per ongeluk (opnieuw) worden ingevuld.
 De geneste `TValue` (bv. `Adres`) wordt wél met zijn eigen builder gebouwd.
 
 `CreateModel` (enkelvoud) hangt aan een AL OPGEVRAAGDE builder (via
-`xmodels.For<TModel>()` of `xmodels.Use<TBuilder>()`, hoofdstuk 4) in plaats van
+`xprovider.For<TModel>()` of `xprovider.Use<TBuilder>()`, hoofdstuk 4) in plaats van
 aan de tabel of de provider. Dat heeft twee redenen:
 
 - Consistentie: alle andere "bouw een model"-aanroepen in XModelBuilder
@@ -1539,7 +1595,7 @@ aan de tabel of de provider. Dat heeft twee redenen:
   `Build()` aanroept:
 
 ```csharp
-var person = xmodels.For<Person>()
+var person = xprovider.For<Person>()
     .With(p => p.Country, "NL")    // vaste waarde, niet uit de tabel
     .CreateModel(table);            // tabel-waarden overschrijven/vullen de rest
 ```
@@ -1659,17 +1715,17 @@ using XModelBuilder.Reqnroll;
 [Given("the following person")]
 public void GivenTheFollowingPerson(Table table)
 {
-    var person = _xmodels.For<Person>().CreateModel(table);
+    var person = _xprovider.For<Person>().CreateModel(table);
     // of, voor een specifiek geregistreerde builder:
-    var person2 = _xmodels.Use<PersonBuilder>().CreateModel(table);
+    var person2 = _xprovider.Use<PersonBuilder>().CreateModel(table);
 }
 
 [Given("the following people")]
 public void GivenTheFollowingPeople(Table table)
 {
-    var people = _xmodels.CreateModels<Person>(table);
+    var people = _xprovider.CreateModels<Person>(table);
     // of, voor een specifiek genaamde builder, toegepast op ELKE rij:
-    var dutchPeople = _xmodels.CreateModels<Person>(table, "dutch-person");
+    var dutchPeople = _xprovider.CreateModels<Person>(table, "dutch-person");
 }
 ```
 
@@ -1938,7 +1994,7 @@ services.AddXModelBuilder(isolation: XModelBuilderIsolation.PerScope)
         .AddBogusFaker(seed: 123);
 
 using var scope = root.CreateScope();
-var xmodels = scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>();
+var xprovider = scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>();
 // alles in deze scope deelt één geseede set; de volgende scope krijgt een verse.
 ```
 
@@ -1975,12 +2031,12 @@ services.AddXModelBuilder()
     .AddXFaker(seed: 12345);   // registreert Faker + geseede Random (volgt de isolatie, hoofdstuk 21.1)
 ```
 
-Getypeerd opvragen kan via `xmodels.Faker<Faker>()`, of korter via de
-gemaks-accessor `xmodels.XFaker()` (extension op `IModelBuilderProvider`); in
+Getypeerd opvragen kan via `xprovider.Faker<Faker>()`, of korter via de
+gemaks-accessor `xprovider.XFaker()` (extension op `IModelBuilderProvider`); in
 beide gevallen leven de methodes onder `.XFake`:
 
 ```csharp
-var id = xmodels.XFaker().XFake.NewGuid("customer-acme");
+var id = xprovider.XFaker().XFake.NewGuid("customer-acme");
 ```
 
 | Token / methode | Soort | Toelichting |
@@ -2004,7 +2060,7 @@ Twee soorten "deterministisch", bewust naast elkaar:
   id voor een bekende entiteit wilt in plaats van "zomaar een willekeurige id".
 
 ```csharp
-var person = xmodels.For<Person>()
+var person = xprovider.For<Person>()
     .With("Id", "xfake.NewGuid(customer-acme)")   // stabiel per sleutel
     .With("Birthday", "xfake.AgeBetween(20,30)")  // reproduceerbaar bij seed
     .Build();
@@ -2038,13 +2094,13 @@ Het `bogus.`-pad geeft elke generator meteen een namespace, dus deze tokens
 botsen niet met je eigen fakers of met de `Faker`-faker. Voor de combinaties die
 deep-path niet dekt (bv. methode-dan-property zoals `Finance.Currency().Code`)
 gebruik je de getypeerde route - via `Faker<BogusFaker>().Bogus` of de
-gemaks-accessor `xmodels.Bogus()` (extension op `IModelBuilderProvider` die de
+gemaks-accessor `xprovider.Bogus()` (extension op `IModelBuilderProvider` die de
 onderliggende Bogus `Faker` teruggeeft):
 
 ```csharp
-var county   = xmodels.Faker<BogusFaker>().Bogus.Address.County();
-// of je kunt in plaats van xmodels.Faker<BogusFaker>().Bogus ook de short hand extension xmodels.Bogus() gebruiken:
-var currency = xmodels.Bogus().Finance.Currency().Code;
+var county   = xprovider.Faker<BogusFaker>().Bogus.Address.County();
+// of je kunt in plaats van xprovider.Faker<BogusFaker>().Bogus ook de short hand extension xprovider.Bogus() gebruiken:
+var currency = xprovider.Bogus().Finance.Currency().Code;
 ```
 
 Bogus gebruikt een EIGEN randomizer (los van `System.Random`). `AddBogusFaker`
@@ -2058,15 +2114,15 @@ Beide fakers kunnen naast elkaar in dezelfde provider; dankzij het `bogus.`-pad
 botsen hun tokens niet:
 
 ```csharp
-var provider = new ServiceCollection()
+var xprovider = new ServiceCollection()
     .AddXModelBuilder()
     .AddXFaker(seed: 2024)
     .AddBogusFaker(seed: 2024)
     .BuildServiceProvider()
     .GetRequiredService<IModelBuilderProvider>();
 
-var person = provider.For<Person>()
-    .With("Id", "NewGuid(customer-acme)")      // Faker (stabiel)
+var person = xprovider.For<Person>()
+    .With("Id", "xfake.NewGuid(customer-acme)")      // Faker (stabiel)
     .With("Name", "bogus.name.firstname()")     // BogusFaker, deep-path
     .With("City", "bogus.address.city()")       // BogusFaker, deep-path
     .Build();

@@ -12,8 +12,8 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
 /// are realistic yet deterministic.
 /// </summary>
 [ModelBuilder("customer")]
-public sealed class CustomerBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-    : ModelBuilder<CustomerBuilder, Customer>(options, xmodels)
+public sealed class CustomerBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<CustomerBuilder, Customer>(options, xprovider)
 {
     protected override void SetDefaults()
     {

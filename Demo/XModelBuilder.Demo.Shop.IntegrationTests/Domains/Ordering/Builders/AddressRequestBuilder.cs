@@ -10,8 +10,8 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 /// deterministic.
 /// </summary>
 [ModelBuilder("address")]
-public sealed class AddressRequestBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-    : ModelBuilder<AddressRequestBuilder, AddressRequest>(options, xmodels)
+public sealed class AddressRequestBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<AddressRequestBuilder, AddressRequest>(options, xprovider)
 {
     protected override void SetDefaults()
     {

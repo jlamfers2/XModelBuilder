@@ -13,7 +13,7 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 /// </summary>
 [Binding]
 public sealed class FulfillOrderSteps(
-    IModelBuilderProvider xmodels,
+    IModelBuilderProvider xprovider,
     OrderApiDriver orders,
     OrderContext orderContext,
     HttpResponseContext response)
@@ -45,7 +45,7 @@ public sealed class FulfillOrderSteps(
 
     private async Task PlaceOrder(int quantity, string sku)
     {
-        var request = xmodels.For<PlaceOrderRequest>("order")
+        var request = xprovider.For<PlaceOrderRequest>("order")
             .With(r => r.Lines, [new OrderLineRequest { Sku = sku, Quantity = quantity }])
             .Build();
 

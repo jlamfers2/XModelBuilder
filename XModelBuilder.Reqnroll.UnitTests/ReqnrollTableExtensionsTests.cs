@@ -15,8 +15,8 @@ public class ReqnrollTableExtensionsTests
     }
 
     [ModelBuilder("person")]
-    public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<PersonBuilder, Person>(options, xmodels)
+    public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<PersonBuilder, Person>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -24,8 +24,8 @@ public class ReqnrollTableExtensionsTests
     }
 
     [ModelBuilder("dutch-person")]
-    public sealed class DutchPersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<DutchPersonBuilder, Person>(options, xmodels)
+    public sealed class DutchPersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<DutchPersonBuilder, Person>(options, xprovider)
     {
         protected override void SetDefaults()
         {

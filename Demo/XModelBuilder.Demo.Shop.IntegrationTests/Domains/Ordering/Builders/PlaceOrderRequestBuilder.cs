@@ -10,8 +10,8 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 /// has to specify the order lines it cares about (via deep paths like <c>Lines[0].Sku</c>).
 /// </summary>
 [ModelBuilder("order")]
-public sealed class PlaceOrderRequestBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-    : ModelBuilder<PlaceOrderRequestBuilder, PlaceOrderRequest>(options, xmodels)
+public sealed class PlaceOrderRequestBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<PlaceOrderRequestBuilder, PlaceOrderRequest>(options, xprovider)
 {
     protected override void SetDefaults()
     {

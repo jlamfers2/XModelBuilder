@@ -10,8 +10,8 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Customers;
 /// assert on. Used by the aggregated "build a customer step by step" feature.
 /// </summary>
 [ModelBuilder("customerAddress")]
-public sealed class AddressBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-    : ModelBuilder<AddressBuilder, Address>(options, xmodels)
+public sealed class AddressBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<AddressBuilder, Address>(options, xprovider)
 {
     protected override void SetDefaults()
     {

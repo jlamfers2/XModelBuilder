@@ -12,8 +12,8 @@ public class DefaultModelBuilderProviderTests
     }
 
     [ModelBuilder("alpha")]
-    public sealed class GadgetBuilderAlpha(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<GadgetBuilderAlpha, Gadget>(options, xmodels)
+    public sealed class GadgetBuilderAlpha(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<GadgetBuilderAlpha, Gadget>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -22,8 +22,8 @@ public class DefaultModelBuilderProviderTests
     }
 
     [ModelBuilder("beta")]
-    public sealed class GadgetBuilderBeta(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<GadgetBuilderBeta, Gadget>(options, xmodels)
+    public sealed class GadgetBuilderBeta(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<GadgetBuilderBeta, Gadget>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -32,8 +32,8 @@ public class DefaultModelBuilderProviderTests
     }
 
     [ModelBuilder("gamma")]
-    public sealed class GadgetBuilderGamma(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<GadgetBuilderGamma, Gadget>(options, xmodels)
+    public sealed class GadgetBuilderGamma(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<GadgetBuilderGamma, Gadget>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -47,8 +47,8 @@ public class DefaultModelBuilderProviderTests
     }
 
     [ModelBuilder("first")]
-    public sealed class FirstGadgetBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<FirstGadgetBuilder, MultiBuilderGadget>(options, xmodels)
+    public sealed class FirstGadgetBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<FirstGadgetBuilder, MultiBuilderGadget>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -57,8 +57,8 @@ public class DefaultModelBuilderProviderTests
     }
 
     [ModelBuilder("second")]
-    public sealed class SecondGadgetBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<SecondGadgetBuilder, MultiBuilderGadget>(options, xmodels)
+    public sealed class SecondGadgetBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<SecondGadgetBuilder, MultiBuilderGadget>(options, xprovider)
     {
         protected override void SetDefaults()
         {

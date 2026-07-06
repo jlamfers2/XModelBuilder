@@ -23,8 +23,8 @@ public class ExtendTests
     }
 
     [ModelBuilder("default")]
-    public sealed class OrderBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<OrderBuilder, Order>(options, xmodels)
+    public sealed class OrderBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<OrderBuilder, Order>(options, xprovider)
     {
         protected override void SetDefaults() { }
 

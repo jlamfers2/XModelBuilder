@@ -23,8 +23,8 @@ public class WithValueAndExtendTests
     // Custom builder met een default (Land = "NL"). Als Extend deze builder zou gebruiken, zou de default
     // opnieuw worden toegepast - dat willen we juist NIET.
     [ModelBuilder("default")]
-    public sealed class KlantBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<KlantBuilder, Klant>(options, xmodels)
+    public sealed class KlantBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<KlantBuilder, Klant>(options, xprovider)
     {
         protected override void SetDefaults() => With(k => k.Land, "NL");
     }

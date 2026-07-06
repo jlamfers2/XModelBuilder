@@ -86,10 +86,10 @@ public class FakerTests
     public void Token_Invokes_Faker_Method_With_Arguments()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<PersonFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<PersonFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Birthday", "AgeBetween(1,20)").Build();
+        var widget = xprovider.For<Widget>().With("Birthday", "AgeBetween(1,20)").Build();
 
         // Assert
         Assert.Equal(DateTime.Today.AddYears(-1), widget.Birthday);
@@ -99,11 +99,11 @@ public class FakerTests
     public void Token_Resolves_Overload_By_Argument_Count()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<PersonFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<PersonFakers>());
 
         // Act
-        var noArgs = xmodels.For<Widget>().With("Name", "RandomString()").Build();
-        var withArg = xmodels.For<Widget>().With("Name", "RandomString(5)").Build();
+        var noArgs = xprovider.For<Widget>().With("Name", "RandomString()").Build();
+        var withArg = xprovider.For<Widget>().With("Name", "RandomString(5)").Build();
 
         // Assert
         Assert.Equal("random-string", noArgs.Name);
@@ -114,10 +114,10 @@ public class FakerTests
     public void Token_TypeFirstParameter_Is_AutoInjected_And_Not_Counted_As_Argument()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<PersonFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<PersonFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "Fixture()").Build();
+        var widget = xprovider.For<Widget>().With("Name", "Fixture()").Build();
 
         // Assert
         Assert.Equal("fixture-string", widget.Name);
@@ -127,12 +127,12 @@ public class FakerTests
     public void Token_LastRegisteredFakerClass_Wins_On_Name_Collision()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s
+        var xprovider = CreateProvider(s => s
             .AddFaker<PersonFakers>()
             .AddFaker<OtherFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "RandomString()").Build();
+        var widget = xprovider.For<Widget>().With("Name", "RandomString()").Build();
 
         // Assert
         Assert.Equal("other-random-string", widget.Name);
@@ -142,32 +142,32 @@ public class FakerTests
     public void Token_UnknownFakerName_Throws()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<PersonFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<PersonFakers>());
 
         // Act & Assert
         Assert.Throws<KeyNotFoundException>(() =>
-            xmodels.For<Widget>().With("Name", "DoesNotExist()").Build());
+            xprovider.For<Widget>().With("Name", "DoesNotExist()").Build());
     }
 
     [Fact]
     public void Token_NoMatchingOverload_Throws()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<PersonFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<PersonFakers>());
 
         // Act & Assert
         Assert.Throws<MissingMethodException>(() =>
-            xmodels.For<Widget>().With("Name", "RandomString(1,2,3)").Build());
+            xprovider.For<Widget>().With("Name", "RandomString(1,2,3)").Build());
     }
 
     [Fact]
     public void Escaped_FakerLookingText_IsTreatedAsLiteral()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<PersonFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<PersonFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "@RandomString()").Build();
+        var widget = xprovider.For<Widget>().With("Name", "@RandomString()").Build();
 
         // Assert
         Assert.Equal("RandomString()", widget.Name);
@@ -177,10 +177,10 @@ public class FakerTests
     public void Token_Invokes_Protected_Faker_Method()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "Secret()").Build();
+        var widget = xprovider.For<Widget>().With("Name", "Secret()").Build();
 
         // Assert
         Assert.Equal("secret-value", widget.Name);
@@ -190,21 +190,21 @@ public class FakerTests
     public void Token_Does_Not_Find_Private_Faker_Method()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act & Assert
         Assert.Throws<KeyNotFoundException>(() =>
-            xmodels.For<Widget>().With("Name", "Hidden()").Build());
+            xprovider.For<Widget>().With("Name", "Hidden()").Build());
     }
 
     [Fact]
     public void Token_Invokes_Static_Faker_Method()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "StaticValue()").Build();
+        var widget = xprovider.For<Widget>().With("Name", "StaticValue()").Build();
 
         // Assert
         Assert.Equal("static-value", widget.Name);
@@ -214,10 +214,10 @@ public class FakerTests
     public void Token_Invokes_Static_Faker_Method_With_Arguments()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "StaticValueWithArg(7)").Build();
+        var widget = xprovider.For<Widget>().With("Name", "StaticValueWithArg(7)").Build();
 
         // Assert
         Assert.Equal("static-7", widget.Name);
@@ -227,10 +227,10 @@ public class FakerTests
     public void Token_Invokes_Protected_Static_Faker_Method()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "ProtectedStaticValue()").Build();
+        var widget = xprovider.For<Widget>().With("Name", "ProtectedStaticValue()").Build();
 
         // Assert
         Assert.Equal("protected-static-value", widget.Name);
@@ -240,32 +240,32 @@ public class FakerTests
     public void Token_Does_Not_Find_Private_Static_Faker_Method()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act & Assert
         Assert.Throws<KeyNotFoundException>(() =>
-            xmodels.For<Widget>().With("Name", "PrivateStaticValue()").Build());
+            xprovider.For<Widget>().With("Name", "PrivateStaticValue()").Build());
     }
 
     [Fact]
     public void Token_Does_Not_Find_Generic_Faker_Method()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act & Assert
         Assert.Throws<KeyNotFoundException>(() =>
-            xmodels.For<Widget>().With("Name", "Create()").Build());
+            xprovider.For<Widget>().With("Name", "Create()").Build());
     }
 
     [Fact]
     public void Generic_Faker_Method_Is_Callable_Via_Typed_Faker()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<AdvancedFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<AdvancedFakers>());
 
         // Act
-        var widget = xmodels.Faker<AdvancedFakers>().Create<Widget>();
+        var widget = xprovider.Faker<AdvancedFakers>().Create<Widget>();
 
         // Assert
         Assert.NotNull(widget);
@@ -275,12 +275,12 @@ public class FakerTests
     public void Token_InjectsIServiceProvider_AsLeadingParameter()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s
+        var xprovider = CreateProvider(s => s
             .AddFaker<AdvancedFakers>()
             .AddSingleton<MarkerService>());
 
         // Act
-        var widget = xmodels.For<Widget>().With("Name", "FromServices()").Build();
+        var widget = xprovider.For<Widget>().With("Name", "FromServices()").Build();
 
         // Assert
         Assert.Equal("marker-value", widget.Name);
@@ -290,13 +290,13 @@ public class FakerTests
     public void Token_InjectsTypeAndIServiceProvider_RegardlessOfOrder()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s
+        var xprovider = CreateProvider(s => s
             .AddFaker<AdvancedFakers>()
             .AddSingleton<MarkerService>());
 
         // Act
-        var withTypeFirst = xmodels.For<Widget>().With("Name", "FromServicesWithType()").Build();
-        var withServicesFirst = xmodels.For<Widget>().With("Name", "FromServicesReversedOrder()").Build();
+        var withTypeFirst = xprovider.For<Widget>().With("Name", "FromServicesWithType()").Build();
+        var withServicesFirst = xprovider.For<Widget>().With("Name", "FromServicesReversedOrder()").Build();
 
         // Assert
         Assert.Equal("String:marker-value", withTypeFirst.Name);
@@ -307,10 +307,10 @@ public class FakerTests
     public void Faker_ResolvesTypedFakerDirectly_OnDIProvider()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<PersonFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<PersonFakers>());
 
         // Act
-        var faker = xmodels.Faker<PersonFakers>();
+        var faker = xprovider.Faker<PersonFakers>();
 
         // Assert
         Assert.Equal("random-string", faker.RandomString());
@@ -322,10 +322,10 @@ public class FakerTests
         // Arrange
         var services = new ServiceCollection().AddXModelBuilder().AddFaker<PersonFakers>();
         var sp = services.BuildServiceProvider();
-        var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
+        var xprovider = sp.GetRequiredService<IModelBuilderProvider>();
 
         // Act
-        var viaFaker = xmodels.Faker<PersonFakers>();
+        var viaFaker = xprovider.Faker<PersonFakers>();
         var viaConstructorInjection = sp.GetRequiredService<PersonFakers>();
 
         // Assert
@@ -336,17 +336,17 @@ public class FakerTests
     public void Faker_UnregisteredType_Throws()
     {
         // Arrange
-        var xmodels = CreateProvider();
+        var xprovider = CreateProvider();
 
         // Act & Assert
-        Assert.Throws<KeyNotFoundException>(() => xmodels.Faker<PersonFakers>());
+        Assert.Throws<KeyNotFoundException>(() => xprovider.Faker<PersonFakers>());
     }
 
     [Fact]
     public void Token_OnNonConformingProvider_ThrowsNotSupported()
     {
         // Arrange
-        // Bind the builder's own _xmodels directly to a provider that does NOT implement the
+        // Bind the builder's own _xprovider directly to a provider that does NOT implement the
         // internal faker-invocation interface - going through .For<TModel>() would bind it to
         // the REAL, wrapped provider instead (since that's what actually constructs the builder).
         var plainProvider = new PlainModelBuilderProvider(CreateProvider(s => s.AddFaker<PersonFakers>()));
@@ -362,10 +362,10 @@ public class FakerTests
     public void BuildMany_ReevaluatesCtorBoundFakerToken_PerBuild()
     {
         // Arrange
-        var xmodels = CreateProvider(s => s.AddFaker<CounterFakers>());
+        var xprovider = CreateProvider(s => s.AddFaker<CounterFakers>());
 
         // Act
-        var pets = xmodels.For<Pet>().With("Name", "NextName()").BuildMany(3);
+        var pets = xprovider.For<Pet>().With("Name", "NextName()").BuildMany(3);
 
         // Assert
         Assert.Equal("Name0", pets[0].Name);
@@ -383,7 +383,7 @@ public class FakerTests
         public IModelBuilder<TModel> For<TModel>(string name) where TModel : class => inner.For<TModel>(name);
         public TModelBuilder Use<TModelBuilder>() where TModelBuilder : IModelBuilder => inner.Use<TModelBuilder>();
         public IModelBuilder Use(Type modelBuilderType) => inner.Use(modelBuilderType);
-        public IModelBuilder<TModel> NewDefaultModelBuilder<TModel>() where TModel : class => inner.NewDefaultModelBuilder<TModel>();
+        public IModelBuilder<TModel> ForEmpty<TModel>() where TModel : class => inner.ForEmpty<TModel>();
         public TFaker Faker<TFaker>() where TFaker : IFaker => inner.Faker<TFaker>();
     }
 }

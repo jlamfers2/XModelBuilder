@@ -10,12 +10,12 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
 /// project uses XFaker for identifiers and Bogus for person/address data.
 /// </summary>
 [ModelBuilder("product")]
-public sealed class ProductBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-    : ModelBuilder<ProductBuilder, Product>(options, xmodels)
+public sealed class ProductBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<ProductBuilder, Product>(options, xprovider)
 {
     protected override void SetDefaults()
     {
-        With(p => p.Sku, x => x.XFaker().XFake.Sequence("SKU-{0:0000}"));
+        With(p => p.Sku, x => x.XFake().Sequence("SKU-{0:0000}"));
         With(p => p.Name, "Sample product");
         With(p => p.UnitPrice, 9.99m);
         With(p => p.StockQuantity, 25);

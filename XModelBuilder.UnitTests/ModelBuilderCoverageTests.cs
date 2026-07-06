@@ -95,8 +95,8 @@ public class ModelBuilderCoverageTests
     // Custom builder for StandardModel that exposes the protected members so the defensive branches
     // can be tested directly, and that counts how often SetDefaults runs.
     [ModelBuilder("probe")]
-    public sealed class ProbeBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<ProbeBuilder, StandardModel>(options, xmodels)
+    public sealed class ProbeBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<ProbeBuilder, StandardModel>(options, xprovider)
     {
         public int SetDefaultsCallCount { get; private set; }
 
@@ -121,22 +121,22 @@ public class ModelBuilderCoverageTests
     }
 
     [ModelBuilder("rich")]
-    public sealed class RichBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<RichBuilder, RichCtorModel>(options, xmodels)
+    public sealed class RichBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<RichBuilder, RichCtorModel>(options, xprovider)
     {
         protected override void SetDefaults() { }
     }
 
     [ModelBuilder("nested-builder")]
-    public sealed class NestedBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<NestedBuilder, Nested>(options, xmodels)
+    public sealed class NestedBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<NestedBuilder, Nested>(options, xprovider)
     {
         protected override void SetDefaults() => With(n => n.Value, "nested-default");
     }
 
     [ModelBuilder("all-optional")]
-    public sealed class AllOptionalBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<AllOptionalBuilder, AllOptionalCtorModel>(options, xmodels)
+    public sealed class AllOptionalBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<AllOptionalBuilder, AllOptionalCtorModel>(options, xprovider)
     {
         protected override void SetDefaults() { }
     }

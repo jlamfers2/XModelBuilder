@@ -11,7 +11,7 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Catalog;
 /// <summary>Catalog management (admin-only) and ownership-based access to orders.</summary>
 [Binding]
 public sealed class CatalogAccessSteps(
-    IModelBuilderProvider xmodels,
+    IModelBuilderProvider xprovider,
     CatalogApiDriver catalog,
     OrderApiDriver orders,
     CatalogContext catalogContext,
@@ -20,7 +20,7 @@ public sealed class CatalogAccessSteps(
     [When(@"I add the following product:")]
     public async Task WhenIAddTheProduct(Table table)
     {
-        var request = xmodels.For<CreateProductRequest>().CreateModel(table);
+        var request = xprovider.For<CreateProductRequest>().CreateModel(table);
         await catalog.AddProduct(request);
     }
 

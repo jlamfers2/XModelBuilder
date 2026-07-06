@@ -12,8 +12,8 @@ public class XModelBuilderServiceCollectionExtensionsTests
     }
 
     [ModelBuilder("joe")]
-    public sealed class WidgetBuilderJoe(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<WidgetBuilderJoe, Widget>(options, xmodels)
+    public sealed class WidgetBuilderJoe(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<WidgetBuilderJoe, Widget>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -22,8 +22,8 @@ public class XModelBuilderServiceCollectionExtensionsTests
     }
 
     [ModelBuilder("jane")]
-    public sealed class WidgetBuilderJane(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<WidgetBuilderJane, Widget>(options, xmodels)
+    public sealed class WidgetBuilderJane(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<WidgetBuilderJane, Widget>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -32,8 +32,8 @@ public class XModelBuilderServiceCollectionExtensionsTests
     }
 
     [ModelBuilder("extra")]
-    public sealed class WidgetBuilderExtra(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<WidgetBuilderExtra, Widget>(options, xmodels)
+    public sealed class WidgetBuilderExtra(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<WidgetBuilderExtra, Widget>(options, xprovider)
     {
         protected override void SetDefaults()
         {
@@ -51,10 +51,10 @@ public class XModelBuilderServiceCollectionExtensionsTests
             .UseAsDefaultModelBuilder<WidgetBuilderJoe>()
             .BuildServiceProvider();
 
-        var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
+        var xprovider = sp.GetRequiredService<IModelBuilderProvider>();
 
         // Act
-        var builder = xmodels.For<Widget>();
+        var builder = xprovider.For<Widget>();
 
         // Assert
         Assert.IsType<WidgetBuilderJoe>(builder);
@@ -71,10 +71,10 @@ public class XModelBuilderServiceCollectionExtensionsTests
             .AddModelBuilder<WidgetBuilderJane>()
             .BuildServiceProvider();
 
-        var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
+        var xprovider = sp.GetRequiredService<IModelBuilderProvider>();
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => xmodels.For<Widget>());
+        Assert.Throws<InvalidOperationException>(() => xprovider.For<Widget>());
     }
 
     [Fact]
@@ -86,10 +86,10 @@ public class XModelBuilderServiceCollectionExtensionsTests
             .AddModelBuildersFromAssembly(typeof(WidgetBuilderJoe).Assembly)
             .BuildServiceProvider();
 
-        var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
+        var xprovider = sp.GetRequiredService<IModelBuilderProvider>();
 
         // Act
-        var widget = xmodels.For<Widget>("jane").Build();
+        var widget = xprovider.For<Widget>("jane").Build();
 
         // Assert
         Assert.Equal("Jane Doe", widget.Name);
@@ -104,10 +104,10 @@ public class XModelBuilderServiceCollectionExtensionsTests
             .AddModelBuildersFromAssembly(typeof(WidgetBuilderJoe).Assembly)
             .BuildServiceProvider();
 
-        var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
+        var xprovider = sp.GetRequiredService<IModelBuilderProvider>();
 
         // Act & Assert
-        Assert.Throws<KeyNotFoundException>(() => xmodels.For<Widget>("does-not-exist"));
+        Assert.Throws<KeyNotFoundException>(() => xprovider.For<Widget>("does-not-exist"));
     }
 
     [Fact]

@@ -18,8 +18,8 @@ public class BuildOverrideSetMemberTests
     // Berekende cross-field defaults in een Build-override: na base.Build() staan alle With/ctor-waarden
     // er, en SetMember zet de afgeleide velden - óók de init-only en de getter-only-met-backing-field.
     [ModelBuilder("default")]
-    public sealed class BundleBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
-        : ModelBuilder<BundleBuilder, Bundle>(options, xmodels)
+    public sealed class BundleBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<BundleBuilder, Bundle>(options, xprovider)
     {
         protected override void SetDefaults() { }
 

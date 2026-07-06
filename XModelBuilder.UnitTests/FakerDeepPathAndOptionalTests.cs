@@ -31,8 +31,8 @@ public class FakerDeepPathAndOptionalTests
             .BuildServiceProvider()
             .GetRequiredService<IModelBuilderProvider>();
 
-    private static string Build(IModelBuilderProvider xmodels, string token) =>
-        xmodels.For<Widget>().With("Name", token).Build().Name;
+    private static string Build(IModelBuilderProvider xprovider, string token) =>
+        xprovider.For<Widget>().With("Name", token).Build().Name;
 
     [Fact]
     public void DeepPath_Property_Then_Method()

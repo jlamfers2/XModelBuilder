@@ -21,8 +21,8 @@ public class ModelBuilderExtensionsTests
     public void BuildMany_WithPerIndexConfigure_varies_per_instance_and_keeps_base_config()
     {
         // Arrange
-        var xmodels = CreateProvider();
-        var builder = xmodels.For<Item>().With(x => x.Name, "base");
+        var xprovider = CreateProvider();
+        var builder = xprovider.For<Item>().With(x => x.Name, "base");
 
         // Act
         var items = builder.BuildMany(3, (b, i) => b.With(x => x.Index, i));
@@ -37,10 +37,10 @@ public class ModelBuilderExtensionsTests
     public void BuildMany_WithPerIndexConfigure_count_zero_returns_empty()
     {
         // Arrange
-        var xmodels = CreateProvider();
+        var xprovider = CreateProvider();
 
         // Act
-        var items = xmodels.For<Item>().BuildMany(0, (b, _) => b);
+        var items = xprovider.For<Item>().BuildMany(0, (b, _) => b);
 
         // Assert
         Assert.Empty(items);
@@ -70,10 +70,10 @@ public class ModelBuilderExtensionsTests
     public void BuildMany_count_overload_still_builds_requested_count()
     {
         // Arrange
-        var xmodels = CreateProvider();
+        var xprovider = CreateProvider();
 
         // Act
-        var items = xmodels.For<Item>().With(x => x.Name, "x").BuildMany(2);
+        var items = xprovider.For<Item>().With(x => x.Name, "x").BuildMany(2);
 
         // Assert
         Assert.Equal(2, items.Count);

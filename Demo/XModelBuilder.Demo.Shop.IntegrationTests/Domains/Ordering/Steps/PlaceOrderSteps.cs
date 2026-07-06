@@ -16,7 +16,7 @@ namespace XModelBuilder.Demo.Shop.IntegrationTests.Domains.Ordering;
 /// </summary>
 [Binding]
 public sealed class PlaceOrderSteps(
-    IModelBuilderProvider xmodels,
+    IModelBuilderProvider xprovider,
     OrderApiDriver orders,
     OrderContext orderContext,
     HttpResponseContext response)
@@ -24,7 +24,7 @@ public sealed class PlaceOrderSteps(
     [When(@"I place the following order:")]
     public async Task WhenIPlaceTheOrder(Table table)
     {
-        var request = xmodels.For<PlaceOrderRequest>("order").CreateModel(table);
+        var request = xprovider.For<PlaceOrderRequest>("order").CreateModel(table);
         await orders.PlaceOrder(request);
     }
 

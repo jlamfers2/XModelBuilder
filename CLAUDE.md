@@ -1,84 +1,86 @@
 # CLAUDE.md
 
-Guidance for working in this repository. Keep it short; deep detail lives in `README-nl.md`.
+Guidance for working in this repository. Keep it short; deep detail lives in `README.md`.
 
-## Wat is dit
+## What is this
 
-XModelBuilder is een reflectiegebaseerd .NET-framework voor het bouwen van
-deterministische testdata (Object Mother + Test Data Builder + orchestration).
-Eén generieke basisklasse `ModelBuilder<TBuilder,TModel>` levert voor elke klasse
-een fluente builder; properties/fields worden gezet via lambda's, string-deep-paths
-(`"Adres.Straat"`, `"Regels[2].Aantal"`) of `WithValues` (key/value, o.a. Gherkin-tabellen).
-Tekstwaarden worden culture-aware geconverteerd en ondersteunen een mini-datataal
-voor arrays/sets/dictionaries/object-literals. Integreert met Bogus en met
-Reqnroll/SpecFlow. Werkt met MS DI én standalone via een statische provider.
+XModelBuilder is a reflection-based .NET framework for building deterministic test
+data (Object Mother + Test Data Builder + orchestration). A single generic base class
+`ModelBuilder<TBuilder,TModel>` provides a fluent builder for every class; properties/fields
+are set via lambdas, string deep-paths (`"Address.Street"`, `"Lines[2].Quantity"`) or
+`WithValues` (key/value, e.g. Gherkin tables). Text values are converted culture-aware and
+support a mini data language for arrays/sets/dictionaries/object-literals. Integrates with
+Bogus and with Reqnroll/SpecFlow. Works with MS DI and standalone via a static provider.
 
-**`README-nl.md` is de canonieke, volledige spec (hoofdstukken 1–21).** Raadpleeg het
-voor API-details, algoritmes en randgevallen; werk het bij als gedrag verandert.
+**`README.md` is the canonical, full spec (chapters 1–21).** Consult it for API details,
+algorithms and edge cases; update it when behavior changes. (`README-nl.md` is the Dutch
+translation of the same spec, kept in sync.)
 
-## Solution-layout
+## Solution layout
 
-| Project | Rol |
+| Project | Role |
 |---|---|
-| `XModelBuilder` | Kernlibrary (net10.0) |
-| `XModelBuilder.Fakers.XFaker` | Dependency-vrije deterministische faker (`AddXFaker(seed)`) |
-| `XModelBuilder.Fakers.Bogus` | Bogus-integratie (`AddBogusFaker(seed)`) |
-| `XModelBuilder.Reqnroll` / `.SpecFlow` | Gherkin-tabel-integraties (`CreateModel(s)<T>`) |
-| `*.UnitTests`, `XModelBuilder.Fakers.UnitTests` | xUnit-testprojecten |
+| `XModelBuilder` | Core library (net10.0) |
+| `XModelBuilder.Fakers.XFaker` | Dependency-free deterministic faker (`AddXFaker(seed)`) |
+| `XModelBuilder.Fakers.Bogus` | Bogus integration (`AddBogusFaker(seed)`) |
+| `XModelBuilder.Reqnroll` / `.SpecFlow` | Gherkin-table integrations (`CreateModel(s)<T>`) |
+| `*.UnitTests`, `XModelBuilder.Fakers.UnitTests` | xUnit test projects |
 | `XModelBuilder.Benchmarks` | Benchmarks |
-| `Demo/XModelBuilder.Demo.Shop` | Demo-webshop (ASP.NET Core Web API, EF Core/SQL Server) |
-| `Demo/XModelBuilder.Demo.Shop.IntegrationTests` | Reqnroll-integratietests van de demo (zie `Demo/README.md`) |
-| `__old_samples` | Verouderd; niet gebruiken |
+| `Demo/XModelBuilder.Demo.Shop` | Demo web shop (ASP.NET Core Web API, EF Core/SQL Server) |
+| `Demo/XModelBuilder.Demo.Shop.IntegrationTests` | Reqnroll integration tests of the demo (see `Demo/README.md`) |
+| `__old_samples` | Obsolete; do not use |
 
-## Kernstructuur van het hoofdproject
+## Core structure of the main project
 
-- Root: publieke contracten en kernimpl — `IModelBuilder(.cs)`, `ModelBuilder.cs`,
+- Root: public contracts and core implementation — `IModelBuilder(.cs)`, `ModelBuilder.cs`,
   `IModelBuilderProvider.cs`, `ModelBuilderOptions.cs`, `ModelBuilderAttribute.cs`,
   `IFaker.cs`, `*Extensions.cs`.
-- `Default/`: statische facades (`For`, `Use`, `Create`), `DefaultModelBuilder`,
+- `Default/`: static facades (`For`, `Use`, `Create`), `DefaultModelBuilder`,
   `DefaultModelBuilderProvider` (standalone singleton).
 - `DependencyInjection/`: `ServiceCollectionExtensions` (`AddXModelBuilder`, `AddModelBuilder`,
-  `UseAsDefaultModelBuilder`, `AddFaker`, …), `ModelBuilderProvider` (**enige plek met echte
-  resolutielogica**), `AssemblyScanner`, `ModelBuilderDefaults`, `XModelBuilderIsolation`.
-- `Core/` (alles `internal`, behalve publieke `FriendlyNameExtensions`): `Parser`/`DataParser`/
-  `CharScanner` (mini-datataal), `ValueConverter` (conversie + faker-tokens), `FakerInvoker`
-  (overload-resolutie + Type/IServiceProvider-injectie), `StringPathSetter`/`LambdaPathSetter` (deep-paths),
+  `UseAsDefaultModelBuilder`, `AddFaker`, …), `ModelBuilderProvider` (**the only place with real
+  resolution logic**), `AssemblyScanner`, `ModelBuilderDefaults`, `XModelBuilderIsolation`.
+- `Core/` (everything `internal`, except the public `FriendlyNameExtensions`): `Parser`/`DataParser`/
+  `CharScanner` (mini data language), `ValueConverter` (conversion + faker tokens), `FakerInvoker`
+  (overload resolution + Type/IServiceProvider injection), `StringPathSetter`/`LambdaPathSetter` (deep-paths),
   `Instantiator`, `HelperExtensions`.
 
-## Conventies
+## Conventions
 
-- Doelplatform **net10.0**, `Nullable` enable, `ImplicitUsings` enable — voor alle projecten.
-- Tests: **xUnit**. Nieuwe kernfeatures krijgen tests in `XModelBuilder.UnitTests`;
-  faker/Gherkin-features in het bijbehorende `*.UnitTests`-project.
-- **Elke** unittest heeft in zijn body de comments `// Arrange`, `// Act` en `// Assert`
-  (in die volgorde), die de drie fasen markeren. Dit geldt voor iedere bestaande én nieuw
-  toegevoegde test. Gebruik een block-body (geen expression-body) zodat de comments passen;
-  als een fase samenvalt met een andere (bv. een one-liner die aanroept én assert), combineer
-  dan de markers, bv. `// Act & Assert`.
-- **Nieuw toegevoegde files** krijgen Engelstalige XML-doc-headers op **alle `public` en
-  `protected` members** (types, methods, properties, constructors, fields): `<summary>`, plus
-  `<param>`/`<typeparam>` voor elke parameter/typeparameter, `<returns>` bij een returnwaarde,
-  en `<exception>` voor elke exceptie die als onderdeel van het contract wordt gegooid. `internal`/
-  `private` members mogen kort of ongedocumenteerd blijven. (Bestaande files vul je aan wanneer je
-  ze toch aanraakt.) **Uitzondering:** test-projecten (`*.UnitTests`) — daar volstaan sprekende
-  testnamen + de AAA-comments; XML-doc-headers op testmethodes/-helpers zijn niet nodig.
-- `XModelBuilder` heeft `InternalsVisibleTo` naar `XModelBuilder.UnitTests`, dus `internal`
-  types (Core-laag) zijn daar direct testbaar.
-- Kernproject hangt bewust aan de **volledige** `Microsoft.Extensions.DependencyInjection`
-  (niet alleen `.Abstractions`), omdat `DefaultModelBuilderProvider` zelf een ServiceProvider bouwt.
-- Elke builder voor een modeltype heeft een verplichte, unieke `[ModelBuilder("naam")]`;
-  de default wijs je order-onafhankelijk aan met `UseAsDefaultModelBuilder<TBuilder>()`.
-- Tekst is grotendeels Nederlands (README, foutmeldingen). Houd die taal aan.
+- Target platform **net10.0**, `Nullable` enable, `ImplicitUsings` enable — for all projects.
+- Tests: **xUnit**. New core features get tests in `XModelBuilder.UnitTests`;
+  faker/Gherkin features in the corresponding `*.UnitTests` project.
+- **Every** unit test has the comments `// Arrange`, `// Act` and `// Assert` in its body
+  (in that order), marking the three phases. This applies to every existing and newly added
+  test. Use a block body (not an expression body) so the comments fit; if one phase coincides
+  with another (e.g. a one-liner that both invokes and asserts), combine the markers, e.g.
+  `// Act & Assert`.
+- **Newly added files** get English XML-doc headers on **all `public` and `protected` members**
+  (types, methods, properties, constructors, fields): `<summary>`, plus `<param>`/`<typeparam>`
+  for each parameter/type-parameter, `<returns>` for a return value, and `<exception>` for each
+  exception thrown as part of the contract. `internal`/`private` members may stay brief or
+  undocumented. (Fill in existing files when you touch them anyway.) **Exception:** test projects
+  (`*.UnitTests`) — there, expressive test names + the AAA comments suffice; XML-doc headers on
+  test methods/helpers are not needed.
+- `XModelBuilder` has `InternalsVisibleTo` to `XModelBuilder.UnitTests`, so `internal` types
+  (the Core layer) are directly testable there.
+- The core project deliberately depends on the **full** `Microsoft.Extensions.DependencyInjection`
+  (not only `.Abstractions`), because `DefaultModelBuilderProvider` builds a ServiceProvider itself.
+- Every builder for a model type has a mandatory, unique `[ModelBuilder("name")]`;
+  the default is assigned order-independently with `UseAsDefaultModelBuilder<TBuilder>()`.
+- The repository keeps a Dutch README (`README-nl.md`) in sync with the English `README.md`.
+  Code, XML-doc comments and error messages are in English.
 
-## Bouwen & testen (PowerShell)
+## Building & testing (PowerShell)
 
 ```powershell
 dotnet build XModelBuilder.sln
-dotnet test  XModelBuilder.sln                      # alle testprojecten
-dotnet test  XModelBuilder.UnitTests                # alleen kern
+dotnet test  XModelBuilder.sln                      # all test projects
+dotnet test  XModelBuilder.UnitTests                # core only
 ```
 
 ## Git
 
-De projectmap is (nog) geen git-repository. Voer geen commits uit tenzij expliciet gevraagd;
-`git init` alleen op verzoek.
+The default branch is `main`. Do not commit or push unless explicitly asked; when a commit is
+requested, branch first if appropriate. The demo integration tests need SQL Server and are
+intentionally excluded from CI.

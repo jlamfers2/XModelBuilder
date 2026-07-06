@@ -9,7 +9,7 @@ namespace XModelBuilder.Fakers.XFaker;
 ///
 /// <para>
 /// Register it with <c>AddXFaker(seed)</c>. From C#, reach the methods via the <see cref="XFake"/>
-/// property, e.g. <c>xmodels.XFaker().XFake.NextId()</c>. The actual methods live on
+/// property, e.g. <c>xprovider.XFake().NextId()</c>. The actual methods live on
 /// <see cref="XFakerApi"/>.
 /// </para>
 /// </summary>
@@ -17,7 +17,7 @@ public class Faker(Random random, TimeProvider clock) : IFaker
 {
     /// <summary>
     /// The XFaker namespace root: every XFaker method lives here. Tokens use the (case-insensitive)
-    /// <c>"xfake."</c> prefix; C# uses this property directly, e.g. <c>xmodels.XFaker().XFake.NextId()</c>.
+    /// <c>"xfake."</c> prefix; C# uses this property directly, e.g. <c>xprovider.XFake().NextId()</c>.
     /// </summary>
     public XFakerApi XFake { get; } = new XFakerApi(random, clock);
 }

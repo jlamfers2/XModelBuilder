@@ -101,7 +101,7 @@ namespace XModelBuilder.DependencyInjection
         }
 
         /// <inheritdoc/>
-        public IModelBuilder<TModel> NewDefaultModelBuilder<TModel>() where TModel : class
+        public IModelBuilder<TModel> ForEmpty<TModel>() where TModel : class
         {
             // Construct the built-in DefaultModelBuilder<TModel> directly - NOT the keyed "default"
             // registration, which could have been replaced by an open-generic that sets fields.

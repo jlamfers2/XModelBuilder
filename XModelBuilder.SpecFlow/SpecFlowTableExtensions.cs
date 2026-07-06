@@ -114,14 +114,14 @@ public static class SpecFlowTableExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(table);
 
-        return builder.With(member, xmodels => xmodels.For<TValue>().CreateModel(table));
+        return builder.With(member, xprovider => xprovider.For<TValue>().CreateModel(table));
     }
 
     /// <summary>
     /// Extends an existing <paramref name="instance"/> by setting a single nested <paramref name="member"/>
     /// to a <typeparamref name="TValue"/> built from <paramref name="table"/>, and returns the instance.
     /// The set is applied through a fresh built-in <c>DefaultModelBuilder&lt;TModel&gt;</c>
-    /// (see <see cref="IModelBuilderProvider.NewDefaultModelBuilder{TModel}"/>), so NONE of
+    /// (see <see cref="IModelBuilderProvider.ForEmpty{TModel}"/>), so NONE of
     /// <typeparamref name="TModel"/>'s own builder defaults or computed logic run - only this one member is
     /// touched. Handy to compose a model over multiple Gherkin tables across steps.
     /// </summary>
@@ -137,7 +137,7 @@ public static class SpecFlowTableExtensions
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(table);
 
-        return provider.NewDefaultModelBuilder<TModel>()
+        return provider.ForEmpty<TModel>()
             .WithValue(member, table)
             .Extend(instance);
     }

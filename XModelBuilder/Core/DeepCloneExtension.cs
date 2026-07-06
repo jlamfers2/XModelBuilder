@@ -24,7 +24,9 @@ namespace XModelBuilder.Core
     public static class DeepCloneExtension
     {
         private static readonly MethodInfo _cloneMethod =
+#pragma warning disable S3011
             typeof(object).GetMethod("MemberwiseClone", BindingFlags.NonPublic | BindingFlags.Instance)!;
+#pragma warning restore S3011
 
         // Cache reflected fields per (type, flags) — reflection field lookup is the hot path.
         private static readonly ConcurrentDictionary<(Type Type, BindingFlags Flags), FieldInfo[]> _fieldCache = new();
@@ -153,8 +155,10 @@ namespace XModelBuilder.Core
             if (typeToReflect.BaseType != null)
             {
                 RecursiveCopyBaseTypePrivateFields(originalObject, visited, cloneObject, typeToReflect.BaseType);
+#pragma warning disable S3011
                 CopyFields(originalObject, visited, cloneObject, typeToReflect.BaseType,
                     BindingFlags.Instance | BindingFlags.NonPublic, static info => info.IsPrivate);
+#pragma warning restore S3011
             }
         }
 
@@ -163,7 +167,9 @@ namespace XModelBuilder.Core
             IDictionary<object, object> visited,
             object cloneObject,
             Type typeToReflect,
+#pragma warning disable S3011
             BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.FlattenHierarchy,
+#pragma warning restore S3011
             Func<FieldInfo, bool>? filter = null)
         {
             var fields = _fieldCache.GetOrAdd((typeToReflect, bindingFlags),

@@ -9,8 +9,8 @@ namespace XModelBuilder.Default;
 /// </summary>
 /// <typeparam name="TModel">The model type this builder builds.</typeparam>
 /// <param name="options">The options controlling conversion and culture behavior.</param>
-/// <param name="xmodels">The provider used to resolve nested builders and fakers.</param>
-public sealed class DefaultModelBuilder<TModel>(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels) : ModelBuilder<DefaultModelBuilder<TModel>, TModel>(options, xmodels)
+/// <param name="xprovider">The provider used to resolve nested builders and fakers.</param>
+public sealed class DefaultModelBuilder<TModel>(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider) : ModelBuilder<DefaultModelBuilder<TModel>, TModel>(options, xprovider)
     where TModel : class
 {
     /// <summary>

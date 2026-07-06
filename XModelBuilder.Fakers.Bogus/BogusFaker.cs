@@ -17,7 +17,7 @@ namespace XModelBuilder.Fakers.Bogus;
 /// person - read as one: <c>"bogus.person.firstname()"</c>.
 /// </description></item>
 /// <item><description>
-/// From typed C#, directly: <c>xmodels.Faker&lt;BogusFaker&gt;().Bogus.Address.County()</c>.
+/// From typed C#, directly: <c>xprovider.Faker&lt;BogusFaker&gt;().Bogus.Address.County()</c>.
 /// </description></item>
 /// </list>
 ///

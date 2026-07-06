@@ -54,14 +54,17 @@ namespace XModelBuilder
         IModelBuilder Use(Type modelBuilderType);
 
         /// <summary>
-        /// Returns a FRESH, built-in <c>DefaultModelBuilder&lt;TModel&gt;</c> - always the plain built-in
-        /// builder, bypassing any registered custom builder for <typeparamref name="TModel"/> as well as a
-        /// configured open-generic fallback (the keyed "default" registration). Because that builder has no
-        /// <c>SetDefaults</c> and no <c>Build</c> override, it applies ONLY the values you give it - use it
-        /// when you must set members (e.g. onto an existing instance via <c>Extend</c>) without any
-        /// builder's own defaults or computed logic running.
+        /// Returns a FRESH, EMPTY built-in <c>DefaultModelBuilder&lt;TModel&gt;</c> - always the plain
+        /// built-in builder with no staged configuration - bypassing any registered custom builder for
+        /// <typeparamref name="TModel"/> as well as a configured open-generic fallback (the keyed "default"
+        /// registration). Unlike <see cref="For{TModel}()"/>, it never runs a builder's <c>SetDefaults</c>
+        /// or <c>Build</c> override, so it applies ONLY the values you give it - use it when you must set
+        /// members (e.g. onto an existing instance via <c>Extend</c>) without any defaults or computed
+        /// logic running.
         /// </summary>
-        IModelBuilder<TModel> NewDefaultModelBuilder<TModel>() where TModel : class;
+        /// <typeparam name="TModel">The model type to build.</typeparam>
+        /// <returns>A fresh, empty <c>DefaultModelBuilder&lt;TModel&gt;</c> that applies only the values you set on it.</returns>
+        IModelBuilder<TModel> ForEmpty<TModel>() where TModel : class;
 
         /// <summary>
         /// Resolves a specific, compile-time known <see cref="IFaker"/> implementation directly -

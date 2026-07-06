@@ -13,7 +13,7 @@ namespace XModelBuilder.Fakers.XFaker;
 /// <para>
 /// This is the object exposed by the <see cref="Faker"/> namespace member <see cref="Faker.XFake"/>, so
 /// its methods are addressed as <c>xfake.&lt;method&gt;()</c> from tokens (e.g. <c>"xfake.nextid()"</c>,
-/// <c>"xfake.newguid(order-1)"</c>) and via <c>xmodels.XFaker().XFake</c> from C#.
+/// <c>"xfake.newguid(order-1)"</c>) and via <c>xprovider.XFake()</c> from C#.
 /// </para>
 ///
 /// <para>

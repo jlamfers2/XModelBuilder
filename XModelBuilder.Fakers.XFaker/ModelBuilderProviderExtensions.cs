@@ -7,13 +7,13 @@ namespace XModelBuilder.Fakers.XFaker;
 public static class ModelBuilderProviderExtensions
 {
     /// <summary>
-    /// Resolves the registered <see cref="Faker"/> instance from the provider. Its methods live under
+    /// Resolves the registered <see cref="XFakerApi"/> instance from the provider. Its methods live under
     /// the namespace member <see cref="Faker.XFake"/>, so call them as
-    /// <c>xmodels.XFaker().XFake.NextId()</c> (mirroring <c>xmodels.Faker&lt;BogusFaker&gt;().Bogus</c>).
+    /// <c>xprovider.XFake().NextId()</c> 
     /// </summary>
     /// <param name="provider">The provider to resolve from.</param>
-    /// <returns>The registered <see cref="Faker"/>; its method surface is <see cref="Faker.XFake"/>.</returns>
+    /// <returns>The registered <see cref="XFakerApi"/>; its method surface is <see cref="Faker.XFake"/>.</returns>
     /// <exception cref="KeyNotFoundException">Thrown when no <see cref="Faker"/> is registered.</exception>
-    public static Faker XFaker(this IModelBuilderProvider provider)
-        => provider.Faker<Faker>();
+    public static XFakerApi XFake(this IModelBuilderProvider provider)
+        => provider.Faker<Faker>().XFake;
 }

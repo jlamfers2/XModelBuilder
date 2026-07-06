@@ -48,7 +48,7 @@ public sealed class DefaultModelBuilderProvider : IModelBuilderProvider, IFakerI
     public IModelBuilder Use(Type modelBuilderType) => GetProvider().Use(modelBuilderType);
 
     /// <inheritdoc/>
-    public IModelBuilder<TModel> NewDefaultModelBuilder<TModel>() where TModel : class => GetProvider().NewDefaultModelBuilder<TModel>();
+    public IModelBuilder<TModel> ForEmpty<TModel>() where TModel : class => GetProvider().ForEmpty<TModel>();
 
     /// <inheritdoc/>
     public TFaker Faker<TFaker>() where TFaker : IFaker => GetProvider().Faker<TFaker>();

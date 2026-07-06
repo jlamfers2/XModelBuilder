@@ -40,12 +40,12 @@ public class BuildBenchmarks
         new("Address.City", "Amsterdam"),
     ];
 
-    private IModelBuilderProvider _xmodels = null!;
+    private IModelBuilderProvider _xprovider = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        _xmodels = new ServiceCollection()
+        _xprovider = new ServiceCollection()
             .AddXModelBuilder()
             .AddFaker<BenchFakers>()
             .BuildServiceProvider()
@@ -53,31 +53,31 @@ public class BuildBenchmarks
     }
 
     [Benchmark]
-    public IModelBuilder<Person> ForResolutionOnly() => _xmodels.For<Person>();
+    public IModelBuilder<Person> ForResolutionOnly() => _xprovider.For<Person>();
 
     [Benchmark(Baseline = true)]
-    public Person ScalarLambda() => _xmodels.For<Person>().With(x => x.Name, "John").Build();
+    public Person ScalarLambda() => _xprovider.For<Person>().With(x => x.Name, "John").Build();
 
     [Benchmark]
-    public Person ScalarString() => _xmodels.For<Person>().With("Name", "John").Build();
+    public Person ScalarString() => _xprovider.For<Person>().With("Name", "John").Build();
 
     [Benchmark]
-    public Person IntConversion() => _xmodels.For<Person>().With("Count", "42").Build();
+    public Person IntConversion() => _xprovider.For<Person>().With("Count", "42").Build();
 
     [Benchmark]
-    public Person DeepPathString() => _xmodels.For<Person>().With("Address.Street", "Main").Build();
+    public Person DeepPathString() => _xprovider.For<Person>().With("Address.Street", "Main").Build();
 
     [Benchmark]
     public Person ObjectLiteral() =>
-        _xmodels.For<Person>().With("Address", "{Street:\"Main\",City:\"Amsterdam\"}").Build();
+        _xprovider.For<Person>().With("Address", "{Street:\"Main\",City:\"Amsterdam\"}").Build();
 
     [Benchmark]
-    public Person FakerToken() => _xmodels.For<Person>().With("Name", "RandomString()").Build();
+    public Person FakerToken() => _xprovider.For<Person>().With("Name", "RandomString()").Build();
 
     [Benchmark]
-    public Person WithValuesRow() => _xmodels.For<Person>().WithValues(Row).Build();
+    public Person WithValuesRow() => _xprovider.For<Person>().WithValues(Row).Build();
 
     [Benchmark]
     public IReadOnlyList<Person> BuildMany10() =>
-        _xmodels.For<Person>().With(x => x.Name, "John").BuildMany(10);
+        _xprovider.For<Person>().With(x => x.Name, "John").BuildMany(10);
 }

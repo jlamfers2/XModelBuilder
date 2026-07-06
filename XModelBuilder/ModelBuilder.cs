@@ -61,7 +61,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
         // string value (e.g. a faker/token call) is re-evaluated on every Build() - consistent
         // with how deep-path string values already behave, and required for BuildMany to produce
         // varied results for ctor-bound properties.
-        public object? GetValue(CultureInfo datetimeCulture, CultureInfo defaultCulture, IModelBuilderProvider xmodels)
+        public object? GetValue(CultureInfo datetimeCulture, CultureInfo defaultCulture, IModelBuilderProvider xprovider)
         {
             if (ValueFactory != null)
             {
@@ -72,7 +72,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
                 // Always go through ValueConverter, even when the parameter is itself typed
                 // string - consistent with deep-path string values, and required for tokens
                 // (faker calls, null()/new()/default()) to work on string-typed ctor arguments.
-                return ValueConverter.Convert(stringValue, Parameter.ParameterType, datetimeCulture, defaultCulture, xmodels);
+                return ValueConverter.Convert(stringValue, Parameter.ParameterType, datetimeCulture, defaultCulture, xprovider);
             }
             if (Value != null)
             {
@@ -89,7 +89,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
 
     private readonly List<DeepPathSetting> _deepPathSettingList = [];
     private readonly Dictionary<string, CtorParameterInfo> _ctorArguments = new(StringComparer.InvariantCultureIgnoreCase);
-    private readonly IModelBuilderProvider _xmodels;
+    private readonly IModelBuilderProvider _xprovider;
     private readonly ModelBuilderOptions _options;
     private TModel? _extendInstance;
 
@@ -100,14 +100,14 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     /// Initializes the builder and applies <see cref="SetDefaults"/> for the first time.
     /// </summary>
     /// <param name="options">The options controlling conversion cultures.</param>
-    /// <param name="xmodels">The provider used to resolve nested builders and fakers.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> or <paramref name="xmodels"/> is <see langword="null"/>.</exception>
-    protected ModelBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xmodels)
+    /// <param name="xprovider">The provider used to resolve nested builders and fakers.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> or <paramref name="xprovider"/> is <see langword="null"/>.</exception>
+    protected ModelBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(xmodels);
+        ArgumentNullException.ThrowIfNull(xprovider);
         _options = options.Value;
-        _xmodels = xmodels;
+        _xprovider = xprovider;
         Reset();
     }
 
@@ -185,7 +185,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     public IModelBuilder<TModel> With<TValue>(Expression<Func<TModel, TValue>> getter, Func<IModelBuilder<TValue>, IModelBuilder<TValue>> builder)
         where TValue : class
     {
-        return With(getter, () => builder(_xmodels.For<TValue>()).Build());
+        return With(getter, () => builder(_xprovider.For<TValue>()).Build());
     }
 
     /// <summary>
@@ -215,7 +215,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     /// <returns>This builder, to allow call chaining.</returns>
     public TBuilder With<TValue>(Expression<Func<TModel, TValue>> memberPath, Func<IModelBuilderProvider, TValue?> valueFactory)
     {
-        return With(memberPath, () => valueFactory(_xmodels));
+        return With(memberPath, () => valueFactory(_xprovider));
     }
 
     /// <summary>
@@ -247,7 +247,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     public TBuilder WithBuilder<TValue>(Expression<Func<TModel, TValue>> memberPath, string builderName)
         where TValue : class
     {
-        return With(memberPath, () => _xmodels.For<TValue>(builderName).Build());
+        return With(memberPath, () => _xprovider.For<TValue>(builderName).Build());
     }
 
     /// <summary>
@@ -307,7 +307,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(member);
-        LambdaPathSetter.SetMemberValueByLambdaUntyped(model, member, value, _xmodels);
+        LambdaPathSetter.SetMemberValueByLambdaUntyped(model, member, value, _xprovider);
     }
 
     #region IModelBuilder<TModel>
@@ -388,7 +388,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
 
     IModelBuilder IModelBuilder.With(LambdaExpression memberPath, Func<IModelBuilderProvider, object?> valueFactory)
     {
-        _deepPathSettingList.Add(new DeepPathSetting { DeepPathExpression = new DeepPathExpression { DeepPath = memberPath, ValueFactory = () => valueFactory(_xmodels) } });
+        _deepPathSettingList.Add(new DeepPathSetting { DeepPathExpression = new DeepPathExpression { DeepPath = memberPath, ValueFactory = () => valueFactory(_xprovider) } });
         return this;
     }
 
@@ -400,7 +400,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     IModelBuilder IModelBuilder.WithBuilder(LambdaExpression memberPath, string builderName)
     {
         var valueType = memberPath.ReturnType;
-        _deepPathSettingList.Add(new DeepPathSetting { DeepPathExpression = new DeepPathExpression { DeepPath = memberPath, ValueFactory = () => _xmodels.For(valueType, builderName).Build() } });
+        _deepPathSettingList.Add(new DeepPathSetting { DeepPathExpression = new DeepPathExpression { DeepPath = memberPath, ValueFactory = () => _xprovider.For(valueType, builderName).Build() } });
         return this;
     }
     #endregion
@@ -433,7 +433,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
             .Select(p =>
                 _ctorArguments
                 .TryGetValue(p.Name!, out var arg)
-                    ? arg.GetValue(_options.DateTimeCulture, _options.DefaultCulture, _xmodels)
+                    ? arg.GetValue(_options.DateTimeCulture, _options.DefaultCulture, _xprovider)
                     : p.GetParameterDefaultValueOrNull())
             .ToArray();
 
@@ -473,7 +473,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
 
         if (deepPath.Contains('.') || deepPath.Contains('['))
         {
-            StringPathSetter.SetMemberValueByString(model, deepPath, value, _options.DateTimeCulture, _options.DefaultCulture, _xmodels);
+            StringPathSetter.SetMemberValueByString(model, deepPath, value, _options.DateTimeCulture, _options.DefaultCulture, _xprovider);
         }
         else
         {
@@ -483,7 +483,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
                 throw new InvalidOperationException($"Unable to set model's member {deepPath} for type {typeof(TModel).GetFriendlyName(true)}");
             }
 
-            var converted = ValueConverter.Convert(value, member.GetMemberType(), _options.DateTimeCulture, _options.DefaultCulture, _xmodels);
+            var converted = ValueConverter.Convert(value, member.GetMemberType(), _options.DateTimeCulture, _options.DefaultCulture, _xprovider);
 
             member.SetMemberValue(model, converted);
         }
@@ -496,11 +496,11 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
         }
         if (deepPathExpression.ValueFactory != null)
         {
-            LambdaPathSetter.SetMemberValueByLambdaUntyped(model, deepPathExpression.DeepPath, deepPathExpression.ValueFactory(), _xmodels);
+            LambdaPathSetter.SetMemberValueByLambdaUntyped(model, deepPathExpression.DeepPath, deepPathExpression.ValueFactory(), _xprovider);
         }
         else
         {
-            LambdaPathSetter.SetMemberValueByLambdaUntyped(model, deepPathExpression.DeepPath, deepPathExpression.Value, _xmodels);
+            LambdaPathSetter.SetMemberValueByLambdaUntyped(model, deepPathExpression.DeepPath, deepPathExpression.Value, _xprovider);
         }
     }
     // In extend mode, apply the ctor-configured values onto the existing instance anyway (via the setter
@@ -512,7 +512,7 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
         {
             if (typeof(TModel).TryGetWritableMember(name, out var member))
             {
-                var value = arg.GetValue(_options.DateTimeCulture, _options.DefaultCulture, _xmodels);
+                var value = arg.GetValue(_options.DateTimeCulture, _options.DefaultCulture, _xprovider);
                 member.SetMemberValue(instance, value);
             }
         }

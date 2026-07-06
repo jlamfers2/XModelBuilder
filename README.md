@@ -56,7 +56,7 @@ Key features:
   properties, init-only properties and private backing fields.
 - Properties/fields can be set via:
   - Strongly-typed lambda expressions: `x => x.Name`
-  - String paths with dot notation and array/list indexing: `"Address.Street"`,
+  - String paths with dot notation and array/list indexing, for use in e.g. gherkin data tables: `"Address.Street"`,
     `"Lines[2].Quantity"`
   - One large set of key/value pairs (`WithValues`), e.g. coming from a
     configuration file, test data table or Gherkin table.
@@ -846,6 +846,15 @@ and overload/optional-parameter rules above apply in full to the final segment. 
 combination such as `x.currency().code` - a method followed by a property as the last step -
 is not expressible: the final segment is exactly one member; use the typed route for that.)
 
+**Namespace convention (recommended standard).** Give each faker its OWN namespace: expose a single
+gettable member whose NAME is the faker's namespace and which returns the object that holds the
+methods, then address the methods through it. The two built-in fakers follow this: XFaker exposes
+`XFake` (tokens `xfake.nextid()`, chapter 21.2) and the Bogus integration exposes `Bogus` (tokens
+`bogus.name.firstname()`, chapter 21.3). Because the first path segment selects the owning faker, a
+per-faker namespace keeps tokens from colliding and keeps the top-level token space clean. A custom
+faker MAY still put methods at the top level (e.g. `AgeBetween(1,20)`), but giving it a namespace is
+the recommended default.
+
 ## 12. BuildMany: building multiple instances at once
 
 Two `BuildMany`'s, in two different places, for two different scenarios: one on the BUILDER
@@ -855,6 +864,8 @@ Two `BuildMany`'s, in two different places, for two different scenarios: one on 
 
 ```csharp
 IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count);
+IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count,
+    Func<IModelBuilder<TModel>, int, IModelBuilder<TModel>> configure);
 ```
 
 Simply calls `Build()` `count` times on the SAME builder. Everything you had already set via
@@ -867,6 +878,18 @@ var people = xmodels.For<Person>()
     .With(p => p.City, "Amsterdam")           // shared by all 5
     .With("Name", "RandomFirstName()")         // 5 different names
     .BuildMany(5);
+```
+
+The second overload adds a per-index `configure` applied before each `Build()`, so you can vary
+configuration by the (zero-based) index while still reusing this one builder (its shared base
+configuration is kept). It is the builder-level counterpart of the provider's per-index overload
+(b) below - same signature, but this one reuses the builder instead of resolving a fresh one per
+index:
+
+```csharp
+var people = xmodels.For<Person>()
+    .With(p => p.City, "Amsterdam")                              // shared base config, kept for all
+    .BuildMany(3, (b, i) => b.With(p => p.Name, $"Person{i}"));  // per-index tweak
 ```
 
 **b) On `IModelBuilderProvider` - each instance a fresh builder:**
@@ -1160,7 +1183,7 @@ Separate integration projects (see chapter 18):
 |---|---|
 | `XModelBuilder.Reqnroll/ReqnrollTableExtensions.cs` | Extension methods `CreateModel<T>`/`CreateModels<T>` on `Reqnroll.Table` |
 | `XModelBuilder.SpecFlow/SpecFlowTableExtensions.cs` | The same extension methods on `TechTalk.SpecFlow.Table` |
-| `XModelBuilder.Fakers.XFaker/Faker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free `Faker` with deterministic primitives, `AddXFaker(seed)` and the convenience accessor `provider.XFaker()` (chapter 21) |
+| `XModelBuilder.Fakers.XFaker/Faker.cs`, `XFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker: `Faker` exposes its deterministic primitives under the `XFake` namespace (methods on `XFakerApi`, tokens `xfake.*`), plus `AddXFaker(seed)` and the convenience accessor `provider.XFaker()` (chapter 21) |
 | `XModelBuilder.Fakers.Bogus/BogusFaker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | `BogusFaker` (exposes a seeded Bogus `Faker`), `AddBogusFaker(seed)` and the convenience accessor `provider.Bogus()` (chapter 21) |
 
 ## 17. Full API reference (signatures)
@@ -1228,6 +1251,8 @@ public static class ModelBuilderProviderExtensions
 public static class ModelBuilderExtensions
 {
     IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count);
+    IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count,
+        Func<IModelBuilder<TModel>, int, IModelBuilder<TModel>> configure);
 }
 
 public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IModelBuilder
@@ -1773,6 +1798,11 @@ The project `XModelBuilder.Fakers.XFaker` contains the class `Faker` (namespace
 Bogus deliberately does NOT do well: identity (counters), order-independent name GUIDs and
 clock-bound ages. It receives a seeded `Random` and a `TimeProvider` via the constructor.
 
+Following the faker **namespace convention** (chapter 11), `Faker` exposes its whole method
+surface under a single namespace member, `XFake` (of type `XFakerApi`). Its tokens are therefore
+addressed as `xfake.<method>()` and NOT at the top level - exactly like Bogus exposes everything under
+`bogus.` (chapter 21.3). This keeps XFaker's tokens from colliding with those of other fakers.
+
 ```csharp
 using XModelBuilder.Fakers.XFaker;
 
@@ -1781,34 +1811,35 @@ services.AddXModelBuilder()
 ```
 
 You can request it in a typed way via `xmodels.Faker<Faker>()`, or more concisely via the
-convenience accessor `xmodels.XFaker()` (extension on `IModelBuilderProvider`):
+convenience accessor `xmodels.XFaker()` (extension on `IModelBuilderProvider`); either way the
+methods live under `.XFake`:
 
 ```csharp
-var id = xmodels.XFaker().NewGuid("customer-acme");
+var id = xmodels.XFaker().XFake.NewGuid("customer-acme");
 ```
 
 | Token / method | Kind | Notes |
 |---|---|---|
-| `NextId()` / `NextId(name)` | monotonic counter(s), starting at 1 | unique and readable; named counters are mutually independent |
-| `Sequence("INV-{0:0000}")` | readable sequence (INV-0001, ...) | composite format with a counter per format string |
-| `NewGuid()` | seeded-random v4 GUID | reproducible given the same seed + call order |
-| `NewGuid(name)` | name-based stable GUID (MD5) | same key → same GUID, REGARDLESS of order/parallelism |
-| `IntBetween(min,max)` | seeded int (inclusive) | base primitive |
-| `Bool(truePercent)` | seeded boolean | true in ~`truePercent`% of cases |
-| `DateBetween(min,max)` | seeded date in range | inclusive |
-| `AgeBetween(min,max)` / `AgeBetween(min,max,atDate)` | birthdate for an age range | "now" comes from `TimeProvider`, NOT `DateTime.Today` - so also deterministic |
+| `xfake.NextId()` / `xfake.NextId(name)` | monotonic counter(s), starting at 1 | unique and readable; named counters are mutually independent |
+| `xfake.Sequence("INV-{0:0000}")` | readable sequence (INV-0001, ...) | composite format with a counter per format string |
+| `xfake.NewGuid()` | seeded-random v4 GUID | reproducible given the same seed + call order |
+| `xfake.NewGuid(name)` | name-based stable GUID (MD5) | same key → same GUID, REGARDLESS of order/parallelism |
+| `xfake.IntBetween(min,max)` | seeded int (inclusive) | base primitive |
+| `xfake.Bool(truePercent)` | seeded boolean | true in ~`truePercent`% of cases |
+| `xfake.DateBetween(min,max)` | seeded date in range | inclusive |
+| `xfake.AgeBetween(min,max)` / `xfake.AgeBetween(min,max,atDate)` | birthdate for an age range | "now" comes from `TimeProvider`, NOT `DateTime.Today` - so also deterministic |
 
 Two kinds of "deterministic", deliberately side by side:
 
-- RNG-based (`NewGuid()`, `IntBetween`, `DateBetween`, `AgeBetween`): reproducible given a seed, but
-  the value depends on how many times the RNG has already been drawn (call order).
-- Name-based (`NewGuid(name)`): the same key always maps to the same GUID, independent of order or
+- RNG-based (`xfake.NewGuid()`, `xfake.IntBetween`, `xfake.DateBetween`, `xfake.AgeBetween`): reproducible given a
+  seed, but the value depends on how many times the RNG has already been drawn (call order).
+- Name-based (`xfake.NewGuid(name)`): the same key always maps to the same GUID, independent of order or
   parallelism. Preferable when you want a STABLE id for a known entity rather than "just a random id".
 
 ```csharp
 var person = xmodels.For<Person>()
-    .With("Id", "NewGuid(customer-acme)")   // stable per key
-    .With("Birthday", "AgeBetween(20,30)")  // reproducible given a seed
+    .With("Id", "xfake.NewGuid(customer-acme)")   // stable per key
+    .With("Birthday", "xfake.AgeBetween(20,30)")  // reproducible given a seed
     .Build();
 ```
 

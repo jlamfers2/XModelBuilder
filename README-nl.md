@@ -56,7 +56,7 @@ Belangrijkste eigenschappen:
   read-only properties, init-only properties en private backing fields.
 - Properties/fields kunnen worden gezet via:
   - Strongly-typed lambda-expressies: `x => x.Naam`
-  - String-paden met dot-notatie en array/list-indexering: `"Adres.Straat"`,
+  - String-paden met dot-notatie en array/list-indexering, voor toepassing in b.v. Gherkin tabel gegevens: `"Adres.Straat"`,
     `"Regels[2].Aantal"`
   - Eén grote set key/value-paren (`WithValues`), bv. afkomstig van een
     configuratiebestand, testdata-tabel of Gherkin-tabel.
@@ -910,6 +910,17 @@ regels hierboven gelden onverkort voor het laatste segment. (Een combinatie als
 uitdrukbaar: het laatste segment is precies één member; gebruik daarvoor de
 getypeerde route.)
 
+**Namespace-conventie (aanbevolen standaard).** Geef elke faker zijn EIGEN
+namespace: expose één leesbaar member waarvan de NAAM de namespace van de faker
+is en dat het object met de methodes teruggeeft, en spreek de methodes daardoor
+aan. De twee ingebouwde fakers doen dit: XFaker exposet `XFake` (tokens
+`xfake.nextid()`, hoofdstuk 21.2) en de Bogus-integratie exposet `Bogus` (tokens
+`bogus.name.firstname()`, hoofdstuk 21.3). Omdat het eerste padsegment de
+eigenaar-faker kiest, voorkomt een namespace-per-faker dat tokens botsen en houdt
+het het top-niveau schoon. Een eigen faker MAG methodes nog steeds op het
+top-niveau zetten (bv. `AgeBetween(1,20)`), maar een namespace geven is de
+aanbevolen default.
+
 ## 12. BuildMany: meerdere instances in één keer bouwen
 
 Twee `BuildMany`'s, op twee verschillende plekken, voor twee verschillende
@@ -920,6 +931,8 @@ PROVIDER (elke instance een verse builder).
 
 ```csharp
 IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count);
+IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count,
+    Func<IModelBuilder<TModel>, int, IModelBuilder<TModel>> configure);
 ```
 
 Roept `Build()` simpelweg `count` keer aan op DEZELFDE builder. Alles wat je
@@ -933,6 +946,19 @@ var people = xmodels.For<Person>()
     .With(p => p.City, "Amsterdam")           // gedeeld door alle 5
     .With("Name", "RandomFirstName()")         // 5x een andere naam
     .BuildMany(5);
+```
+
+De tweede overload voegt een per-index `configure` toe die vóór elke `Build()`
+wordt toegepast, zodat je de configuratie per (nul-gebaseerde) index kunt laten
+variëren terwijl je deze ene builder hergebruikt (de gedeelde basisconfiguratie
+blijft behouden). Het is de builder-tegenhanger van de per-index-overload op de
+provider (b) hieronder - dezelfde signatuur, maar deze hergebruikt de builder in
+plaats van per index een verse te resolven:
+
+```csharp
+var people = xmodels.For<Person>()
+    .With(p => p.City, "Amsterdam")                              // gedeelde basis, voor allemaal
+    .BuildMany(3, (b, i) => b.With(p => p.Name, $"Person{i}"));  // per-index aanpassing
 ```
 
 **b) Op `IModelBuilderProvider` - elke instance een verse builder:**
@@ -1253,7 +1279,7 @@ Losse integratieprojecten (zie hoofdstuk 18):
 |---|---|
 | `XModelBuilder.Reqnroll/ReqnrollTableExtensions.cs` | Extension methods `CreateModel<T>`/`CreateModels<T>` op `Reqnroll.Table` |
 | `XModelBuilder.SpecFlow/SpecFlowTableExtensions.cs` | Dezelfde extension methods op `TechTalk.SpecFlow.Table` |
-| `XModelBuilder.Fakers.XFaker/Faker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-vrije `Faker` met deterministische primitieven, `AddXFaker(seed)` en de gemaks-accessor `provider.XFaker()` (hoofdstuk 21) |
+| `XModelBuilder.Fakers.XFaker/Faker.cs`, `XFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-vrije faker: `Faker` stelt zijn deterministische primitieven beschikbaar onder de `XFake`-namespace (methodes op `XFakerApi`, tokens `xfake.*`), plus `AddXFaker(seed)` en de gemaks-accessor `provider.XFaker()` (hoofdstuk 21) |
 | `XModelBuilder.Fakers.Bogus/BogusFaker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | `BogusFaker` (expose't een geseede Bogus `Faker`), `AddBogusFaker(seed)` en de gemaks-accessor `provider.Bogus()` (hoofdstuk 21) |
 
 ## 17. Volledige API-referentie (signatures)
@@ -1321,6 +1347,8 @@ public static class ModelBuilderProviderExtensions
 public static class ModelBuilderExtensions
 {
     IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count);
+    IReadOnlyList<TModel> BuildMany<TModel>(this IModelBuilder<TModel> builder, int count,
+        Func<IModelBuilder<TModel>, int, IModelBuilder<TModel>> configure);
 }
 
 public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IModelBuilder
@@ -1934,6 +1962,12 @@ deterministische primitieven die Bogus juist NIET goed doet: identiteit
 (tellers), volgorde-onafhankelijke naam-GUIDs en klok-gebonden leeftijden. Hij
 krijgt een geseede `Random` en een `TimeProvider` via de constructor.
 
+Conform de faker-**namespace-conventie** (hoofdstuk 11) stelt `Faker` zijn hele
+methode-oppervlak beschikbaar onder één namespace-member, `XFake` (van het type
+`XFakerApi`). Zijn tokens worden dus aangeroepen als `xfake.<methode>()` en NIET op
+het top-niveau - net zoals Bogus alles onder `bogus.` aanbiedt (hoofdstuk 21.3).
+Zo botsen XFaker's tokens niet met die van andere fakers.
+
 ```csharp
 using XModelBuilder.Fakers.XFaker;
 
@@ -1942,36 +1976,37 @@ services.AddXModelBuilder()
 ```
 
 Getypeerd opvragen kan via `xmodels.Faker<Faker>()`, of korter via de
-gemaks-accessor `xmodels.XFaker()` (extension op `IModelBuilderProvider`):
+gemaks-accessor `xmodels.XFaker()` (extension op `IModelBuilderProvider`); in
+beide gevallen leven de methodes onder `.XFake`:
 
 ```csharp
-var id = xmodels.XFaker().NewGuid("customer-acme");
+var id = xmodels.XFaker().XFake.NewGuid("customer-acme");
 ```
 
 | Token / methode | Soort | Toelichting |
 |---|---|---|
-| `NextId()` / `NextId(naam)` | monotone teller(s), start bij 1 | uniek en leesbaar; named counters zijn onderling onafhankelijk |
-| `Sequence("INV-{0:0000}")` | leesbare reeks (INV-0001, ...) | composiet-formaat met een teller per format-string |
-| `NewGuid()` | seeded-random v4-GUID | reproduceerbaar bij gelijke seed + call-volgorde |
-| `NewGuid(naam)` | naam-gebaseerde stabiele GUID (MD5) | zelfde sleutel → zelfde GUID, ONGEACHT volgorde/parallellisme |
-| `IntBetween(min,max)` | seeded int (inclusief) | basisprimitief |
-| `Bool(truePercent)` | seeded boolean | true in ~`truePercent`% van de gevallen |
-| `DateBetween(min,max)` | seeded datum in range | inclusief |
-| `AgeBetween(min,max)` / `AgeBetween(min,max,atDate)` | geboortedatum voor leeftijdsrange | "nu" komt uit `TimeProvider`, NIET `DateTime.Today` - dus ook deterministisch |
+| `xfake.NextId()` / `xfake.NextId(naam)` | monotone teller(s), start bij 1 | uniek en leesbaar; named counters zijn onderling onafhankelijk |
+| `xfake.Sequence("INV-{0:0000}")` | leesbare reeks (INV-0001, ...) | composiet-formaat met een teller per format-string |
+| `xfake.NewGuid()` | seeded-random v4-GUID | reproduceerbaar bij gelijke seed + call-volgorde |
+| `xfake.NewGuid(naam)` | naam-gebaseerde stabiele GUID (MD5) | zelfde sleutel → zelfde GUID, ONGEACHT volgorde/parallellisme |
+| `xfake.IntBetween(min,max)` | seeded int (inclusief) | basisprimitief |
+| `xfake.Bool(truePercent)` | seeded boolean | true in ~`truePercent`% van de gevallen |
+| `xfake.DateBetween(min,max)` | seeded datum in range | inclusief |
+| `xfake.AgeBetween(min,max)` / `xfake.AgeBetween(min,max,atDate)` | geboortedatum voor leeftijdsrange | "nu" komt uit `TimeProvider`, NIET `DateTime.Today` - dus ook deterministisch |
 
 Twee soorten "deterministisch", bewust naast elkaar:
 
-- RNG-gebaseerd (`NewGuid()`, `IntBetween`, `DateBetween`, `AgeBetween`):
+- RNG-gebaseerd (`xfake.NewGuid()`, `xfake.IntBetween`, `xfake.DateBetween`, `xfake.AgeBetween`):
   reproduceerbaar bij een seed, maar de waarde hangt af van hoe vaak de RNG
   al getrokken is (call-volgorde).
-- Naam-gebaseerd (`NewGuid(naam)`): dezelfde sleutel mapt altijd op dezelfde
+- Naam-gebaseerd (`xfake.NewGuid(naam)`): dezelfde sleutel mapt altijd op dezelfde
   GUID, los van volgorde of parallellisme. Te verkiezen wanneer je een STABIELE
   id voor een bekende entiteit wilt in plaats van "zomaar een willekeurige id".
 
 ```csharp
 var person = xmodels.For<Person>()
-    .With("Id", "NewGuid(customer-acme)")   // stabiel per sleutel
-    .With("Birthday", "AgeBetween(20,30)")  // reproduceerbaar bij seed
+    .With("Id", "xfake.NewGuid(customer-acme)")   // stabiel per sleutel
+    .With("Birthday", "xfake.AgeBetween(20,30)")  // reproduceerbaar bij seed
     .Build();
 ```
 

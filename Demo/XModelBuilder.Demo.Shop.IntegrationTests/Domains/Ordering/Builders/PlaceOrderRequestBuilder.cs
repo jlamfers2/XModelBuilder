@@ -16,7 +16,7 @@ public sealed class PlaceOrderRequestBuilder(IOptions<ModelBuilderOptions> optio
     protected override void SetDefaults()
     {
         With(r => r.PaymentMethod, PaymentMethodType.Ideal);
-        With(r => r.ShippingAddress, x => x.For<AddressRequest>().Build());
-        With(r => r.BillingAddress, x => x.For<AddressRequest>().Build());
+        With(r => r.ShippingAddress, x => x.Use<AddressRequestBuilder>().Build());
+        With(r => r.BillingAddress, x => x.Use<AddressRequestBuilder>().Build());
     }
 }

@@ -13,7 +13,8 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="Faker"/> together with a seeded <see cref="Random"/> so its tokens
-    /// (NextId(), NewGuid(), AgeBetween(...), ...) produce deterministic, reproducible data.
+    /// (addressed under the "xfake." namespace: xfake.NextId(), xfake.NewGuid(), xfake.AgeBetween(...), ...)
+    /// produce deterministic, reproducible data.
     ///
     /// <para>
     /// Determinism is the GUARANTEE here, not a lucky side effect: the seeded RNG is always

@@ -9,24 +9,26 @@ public class IsolationTests
     private static long FirstIdInNewScope(IServiceProvider root)
     {
         using var scope = root.CreateScope();
-        return scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>().Faker<Faker>().NextId();
+        return scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>().Faker<Faker>().XFake.NextId();
     }
 
     private static List<Guid> ThreeGuidsInNewScope(IServiceProvider root)
     {
         using var scope = root.CreateScope();
-        var faker = scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>().Faker<Faker>();
+        var faker = scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>().Faker<Faker>().XFake;
         return [faker.NewGuid(), faker.NewGuid(), faker.NewGuid()];
     }
 
     [Fact]
     public void Shared_State_IsSharedAcrossScopes()
     {
+        // Arrange
         var root = new ServiceCollection()
             .AddXModelBuilder(isolation: XModelBuilderIsolation.Shared)
             .AddXFaker(seed: 123)
             .BuildServiceProvider();
 
+        // Act & Assert
         // One shared singleton faker -> the counter keeps climbing across scopes.
         Assert.Equal(1L, FirstIdInNewScope(root));
         Assert.Equal(2L, FirstIdInNewScope(root));
@@ -35,11 +37,13 @@ public class IsolationTests
     [Fact]
     public void PerScope_State_IsIsolated_And_EachScopeReproducible()
     {
+        // Arrange
         var root = new ServiceCollection()
             .AddXModelBuilder(isolation: XModelBuilderIsolation.PerScope)
             .AddXFaker(seed: 123)
             .BuildServiceProvider();
 
+        // Act & Assert
         // Each scope gets its own re-seeded faker -> the counter resets every scope (isolation)...
         Assert.Equal(1L, FirstIdInNewScope(root));
         Assert.Equal(1L, FirstIdInNewScope(root));
@@ -51,6 +55,7 @@ public class IsolationTests
     [Fact]
     public void Isolation_IsApplied_RegardlessOfCallOrder()
     {
+        // Arrange
         // AddXFaker BEFORE AddXModelBuilder: the deferred registration is flushed with the
         // PerScope lifetime once AddXModelBuilder sets the isolation.
         var root = new ServiceCollection()
@@ -58,6 +63,7 @@ public class IsolationTests
             .AddXModelBuilder(isolation: XModelBuilderIsolation.PerScope)
             .BuildServiceProvider();
 
+        // Act & Assert
         Assert.Equal(1L, FirstIdInNewScope(root));
         Assert.Equal(1L, FirstIdInNewScope(root));
     }
@@ -65,11 +71,15 @@ public class IsolationTests
     [Fact]
     public void Validate_Throws_OnConflictingIsolation()
     {
+        // Arrange
         var services = new ServiceCollection()
             .AddXModelBuilder(isolation: XModelBuilderIsolation.Shared)
             .AddXModelBuilder(isolation: XModelBuilderIsolation.PerScope); // conflict: provider stays Singleton
 
+        // Act
         var ex = Assert.Throws<InvalidOperationException>(() => services.ValidateXModelBuilderRegistrations());
+
+        // Assert
         Assert.Contains("does not match the configured isolation", ex.Message);
     }
 }

@@ -25,18 +25,20 @@ public class CombinedFakerTests
     [Fact]
     public void XFaker_And_BogusFaker_Coexist_And_BuildDeterministically()
     {
+        // Arrange & Act
         var p1 = CreateProvider(2024).For<Person>()
-            .With("Id", "NewGuid(customer-acme)")     // XFaker, name-based -> stable
+            .With("Id", "xfake.NewGuid(customer-acme)")     // XFaker, name-based -> stable
             .With("Name", "bogus.name.firstname()")    // BogusFaker, deep-path
             .With("City", "bogus.address.city()")      // BogusFaker, deep-path
             .Build();
 
         var p2 = CreateProvider(2024).For<Person>()
-            .With("Id", "NewGuid(customer-acme)")
+            .With("Id", "xfake.NewGuid(customer-acme)")
             .With("Name", "bogus.name.firstname()")
             .With("City", "bogus.address.city()")
             .Build();
 
+        // Assert
         Assert.Equal(p1.Id, p2.Id);
         Assert.Equal(p1.Name, p2.Name);
         Assert.Equal(p1.City, p2.City);

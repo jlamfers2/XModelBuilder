@@ -15,20 +15,24 @@ public class SeedFactoryTests
     [Fact]
     public void SeedFactory_ConstantSeed_MatchesIntOverload()
     {
-        Faker FromFactory() => new ServiceCollection().AddXModelBuilder().AddXFaker(_ => 42)
-            .BuildServiceProvider().GetRequiredService<IModelBuilderProvider>().Faker<Faker>();
-        Faker FromInt() => new ServiceCollection().AddXModelBuilder().AddXFaker(42)
-            .BuildServiceProvider().GetRequiredService<IModelBuilderProvider>().Faker<Faker>();
+        // Arrange
+        XFakerApi FromFactory() => new ServiceCollection().AddXModelBuilder().AddXFaker(_ => 42)
+            .BuildServiceProvider().GetRequiredService<IModelBuilderProvider>().Faker<Faker>().XFake;
+        XFakerApi FromInt() => new ServiceCollection().AddXModelBuilder().AddXFaker(42)
+            .BuildServiceProvider().GetRequiredService<IModelBuilderProvider>().Faker<Faker>().XFake;
 
+        // Act
         var byFactory = Enumerable.Range(0, 5).Select(_ => FromFactory().NewGuid()).ToList();
         var byInt = Enumerable.Range(0, 5).Select(_ => FromInt().NewGuid()).ToList();
 
+        // Assert
         Assert.Equal(byInt, byFactory);
     }
 
     [Fact]
     public void SeedFactory_PerScope_DerivesSeedFromScopedState()
     {
+        // Arrange
         var root = new ServiceCollection()
             .AddScoped<SeedSource>()
             .AddXModelBuilder(isolation: XModelBuilderIsolation.PerScope)
@@ -39,9 +43,10 @@ public class SeedFactoryTests
         {
             using var scope = root.CreateScope();
             scope.ServiceProvider.GetRequiredService<SeedSource>().Seed = seed;
-            return scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>().Faker<Faker>().NewGuid();
+            return scope.ServiceProvider.GetRequiredService<IModelBuilderProvider>().Faker<Faker>().XFake.NewGuid();
         }
 
+        // Act & Assert
         Assert.Equal(FirstGuid(7), FirstGuid(7));      // same per-scope seed -> reproducible
         Assert.NotEqual(FirstGuid(7), FirstGuid(8));   // different per-scope seed -> different data
     }

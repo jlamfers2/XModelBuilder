@@ -47,11 +47,13 @@ public class WithValueAndExtendTests
     [Fact]
     public void WithValue_FillsNestedMemberFromItsOwnTable_DuringBuild()
     {
+        // Arrange & Act
         var klant = CreateProvider().For<Klant>()
             .With(k => k.Naam, "Bob")
             .WithValue(k => k.Adres, AdresTabel())
             .Build();
 
+        // Assert
         Assert.Equal("Bob", klant.Naam);
         Assert.Equal("NL", klant.Land);              // custom-builder default draait wél bij een gewone Build
         Assert.Equal("Hoofdstraat", klant.Adres.Straat);
@@ -61,13 +63,16 @@ public class WithValueAndExtendTests
     [Fact]
     public void Extend_SetsNestedMemberOntoExistingInstance_ViaPlainBuilder()
     {
+        // Arrange
         var provider = CreateProvider();
 
         var klant = provider.For<Klant>().With(k => k.Naam, "Alice").Build();
         klant.Land = "BE"; // afwijkend van de custom-builder default
 
+        // Act
         var extended = provider.Extend(klant, k => k.Adres, AdresTabel());
 
+        // Assert
         Assert.Same(klant, extended);
         Assert.Equal("Hoofdstraat", extended.Adres.Straat); // geneste member gezet
         Assert.Equal("Amsterdam", extended.Adres.Plaats);

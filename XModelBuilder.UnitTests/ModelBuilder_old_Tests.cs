@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using XModelBuilder.DependencyInjection;
 
@@ -80,6 +80,7 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void Defaults_Are_ReInvoked_On_Each_Build()
         {
+            // Arrange
             var sc = new ServiceCollection().AddXModelBuilder();
 
             sc.AddModelBuilder<WidgetModelBuilder>();
@@ -87,7 +88,11 @@ namespace XModelBuilder.UnitTests
             var sp = sc.BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
+
+            // Act
             var models = xmodels.For<Widget>().BuildMany(2);
+
+            // Assert
             Assert.NotEqual(models[0].Id, models[1].Id);
             Assert.NotEqual(models[0].Id2, models[1].Id2);
         }
@@ -95,13 +100,14 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void Init_Properties_Can_Be_Set()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
-
+            // Act
             var model = xmodels.For<Person>()
                 .With(x => x.Name, "John")
                 .With(x => x.City, "Londen")
@@ -112,10 +118,12 @@ namespace XModelBuilder.UnitTests
                 )
                 .Build();
 
+            // Assert
             Assert.Equal("John", model.Name);
             Assert.Equal("MainStreet", model.Address.Street);
             Assert.Equal("City", model.Address.City);
 
+            // Act (again, via string-path tokens)
             model = xmodels.For<Person>()
                 .With("Name", "John")
                 .With("City", "Londen")
@@ -123,6 +131,7 @@ namespace XModelBuilder.UnitTests
                 .With("Address", "{Street:\"MainStreet\",City:\"City\"}")
                 .Build();
 
+            // Assert
             Assert.Equal("John", model.Name);
             Assert.Equal("MainStreet", model.Address.Street);
             Assert.Equal("City", model.Address.City);
@@ -131,22 +140,26 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void Model_With_No_Public_Ctor_Falls_Back_To_Instantiator()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var model = xmodels.For<NoPublicCtorModel>()
                 .With(x => x.Name, "John")
                 .Build();
 
+            // Assert
             Assert.Equal("John", model.Name);
         }
 
         [Fact]
         public void With_Lambda_Value_From_Use_Builder()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -154,11 +167,13 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var model = xmodels.For<Person>()
                 .With(x => x.Name, "John")
                 .With(x => x.Address, xmodels.Use<ComplexAddressBuilder>().Build())
                 .Build();
 
+            // Assert
             Assert.Equal("ComplexStreet", model.Address.Street);
             Assert.Equal("ComplexCity", model.Address.City);
         }
@@ -166,6 +181,7 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void With_StringPath_NamedBuilderReference_ResolvesExplicitBuilder()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -173,11 +189,13 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var model = xmodels.For<Person>()
                 .With("Name", "John")
                 .With("Address", "complex-adres")
                 .Build();
 
+            // Assert
             Assert.Equal("ComplexStreet", model.Address.Street);
             Assert.Equal("ComplexCity", model.Address.City);
         }
@@ -185,6 +203,7 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void With_StringPath_NewToken_CreatesBlankInstance()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -192,23 +211,27 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var model = xmodels.For<Person>()
                 .With("Name", "John")
                 .With("Address", "new()")
                 .Build();
 
+            // Assert
             Assert.Null(model.Address.Street);
         }
 
         [Fact]
         public void With_StringPath_DefaultToken_EqualsForBuild()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var model = xmodels.For<Person>()
                 .With("Name", "John")
                 .With("Address", "default()")
@@ -216,6 +239,7 @@ namespace XModelBuilder.UnitTests
 
             var expectedAddress = xmodels.For<Address>().Build();
 
+            // Assert
             Assert.Equal(expectedAddress.Street, model.Address.Street);
             Assert.Equal(expectedAddress.City, model.Address.City);
         }
@@ -223,29 +247,34 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void With_StringPath_NullToken_SetsPropertyToNullExplicitly()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var vehicle = xmodels.For<Vehicle>()
                 .With(x => x.GarageAddress, new Address())
                 .With("GarageAddress", "null()")
                 .Build();
 
+            // Assert
             Assert.Null(vehicle.GarageAddress);
         }
 
         [Fact]
         public void With_StringPath_UnknownNamedBuilderReference_Throws()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act & Assert
             Assert.Throws<KeyNotFoundException>(() =>
                 xmodels.For<Person>()
                     .With("Name", "John")
@@ -256,6 +285,7 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void WithBuilder_ResolvesNamedBuilder_ViaLambda()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -263,11 +293,13 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var model = xmodels.For<Person>()
                 .With(x => x.Name, "John")
                 .WithBuilder(x => x.Address, "complex-adres")
                 .Build();
 
+            // Assert
             Assert.Equal("ComplexStreet", model.Address.Street);
             Assert.Equal("ComplexCity", model.Address.City);
         }
@@ -275,16 +307,19 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void BuildMany_OnProvider_BuildsIndependentInstances_ConfiguredPerIndex()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var people = xmodels.BuildMany<Person>(3, (b, i) => b
                 .With(p => p.Name, $"Person{i}")
                 .With(p => p.Address, new Address()));
 
+            // Assert
             Assert.Equal(3, people.Count);
             Assert.Equal("Person0", people[0].Name);
             Assert.Equal("Person1", people[1].Name);
@@ -294,20 +329,24 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void BuildMany_OnProvider_WithoutConfigure_BuildsCountIndependentDefaultInstances()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var widgets = xmodels.BuildMany<NoPublicCtorModel>(4);
 
+            // Assert
             Assert.Equal(4, widgets.Count);
         }
 
         [Fact]
         public void BuildMany_OnProvider_WithModelBuilderName_UsesThatBuilderForEveryInstance()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -315,8 +354,10 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var addresses = xmodels.BuildMany<Address>(3, "complex-adres");
 
+            // Assert
             Assert.Equal(3, addresses.Count);
             Assert.All(addresses, a => Assert.Equal("ComplexStreet", a.Street));
         }
@@ -324,6 +365,7 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void BuildMany_OnProvider_WithModelBuilderNameAndConfigure_CombinesBoth()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -331,8 +373,10 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var addresses = xmodels.BuildMany<Address>(3, "complex-adres", (b, i) => b.With(a => a.StreetNumber, i.ToString()));
 
+            // Assert
             Assert.Equal(3, addresses.Count);
             Assert.Equal("ComplexStreet", addresses[0].Street);
             Assert.Equal("0", addresses[0].StreetNumber);
@@ -343,6 +387,7 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void BuildMany_OnBuilder_ReusesSameBuilder_VaryingStringPathValues()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .BuildServiceProvider();
@@ -353,11 +398,13 @@ namespace XModelBuilder.UnitTests
                 .With(p => p.Address, new Address())
                 .With(p => p.City, "Amsterdam");
 
+            // Act
             var counter = 0;
             var people = builder
                 .With(p => p.Name, () => $"Person{counter++}")
                 .BuildMany(3);
 
+            // Assert
             Assert.Equal(3, people.Count);
             Assert.Equal("Person0", people[0].Name);
             Assert.Equal("Person1", people[1].Name);
@@ -368,6 +415,7 @@ namespace XModelBuilder.UnitTests
         [Fact]
         public void With_ProviderValueFactory_ReceivesBuildersOwnProvider()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -375,16 +423,19 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var vehicle = xmodels.For<Vehicle>()
                 .With(v => v.GarageAddress, provider => provider.For<Address>("complex-adres").Build())
                 .Build();
 
+            // Assert
             Assert.Equal("ComplexStreet", vehicle.GarageAddress!.Street);
         }
 
         [Fact]
         public void With_ProviderValueFactory_OnCtorBoundProperty_RoutesThroughHandleCtorArgument()
         {
+            // Arrange
             var sp = new ServiceCollection()
                 .AddXModelBuilder()
                 .AddModelBuilder<ComplexAddressBuilder>()
@@ -392,11 +443,13 @@ namespace XModelBuilder.UnitTests
 
             var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+            // Act
             var person = xmodels.For<Person>()
                 .With(p => p.Name, "John")
                 .With(p => p.Address, provider => provider.For<Address>("complex-adres").Build())
                 .Build();
 
+            // Assert
             Assert.Equal("ComplexStreet", person.Address.Street);
         }
     }

@@ -44,6 +44,7 @@ public class XModelBuilderServiceCollectionExtensionsTests
     [Fact]
     public void For_Resolves_ConfiguredDefault_RegardlessOfRegistrationOrder()
     {
+        // Arrange
         var sp = new ServiceCollection()
             .AddXModelBuilder()
             .AddModelBuildersFromAssembly(typeof(WidgetBuilderJoe).Assembly)
@@ -52,8 +53,10 @@ public class XModelBuilderServiceCollectionExtensionsTests
 
         var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+        // Act
         var builder = xmodels.For<Widget>();
 
+        // Assert
         Assert.IsType<WidgetBuilderJoe>(builder);
         Assert.Equal("John Doe", builder.Build().Name);
     }
@@ -61,6 +64,7 @@ public class XModelBuilderServiceCollectionExtensionsTests
     [Fact]
     public void For_MultipleBuilders_NoDefaultConfigured_Throws()
     {
+        // Arrange
         var sp = new ServiceCollection()
             .AddXModelBuilder()
             .AddModelBuilder<WidgetBuilderJoe>()
@@ -69,12 +73,14 @@ public class XModelBuilderServiceCollectionExtensionsTests
 
         var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+        // Act & Assert
         Assert.Throws<InvalidOperationException>(() => xmodels.For<Widget>());
     }
 
     [Fact]
     public void For_With_Name_Resolves_Explicitly_Named_Builder()
     {
+        // Arrange
         var sp = new ServiceCollection()
             .AddXModelBuilder()
             .AddModelBuildersFromAssembly(typeof(WidgetBuilderJoe).Assembly)
@@ -82,14 +88,17 @@ public class XModelBuilderServiceCollectionExtensionsTests
 
         var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+        // Act
         var widget = xmodels.For<Widget>("jane").Build();
 
+        // Assert
         Assert.Equal("Jane Doe", widget.Name);
     }
 
     [Fact]
     public void For_With_Unknown_Name_Throws()
     {
+        // Arrange
         var sp = new ServiceCollection()
             .AddXModelBuilder()
             .AddModelBuildersFromAssembly(typeof(WidgetBuilderJoe).Assembly)
@@ -97,18 +106,21 @@ public class XModelBuilderServiceCollectionExtensionsTests
 
         var xmodels = sp.GetRequiredService<IModelBuilderProvider>();
 
+        // Act & Assert
         Assert.Throws<KeyNotFoundException>(() => xmodels.For<Widget>("does-not-exist"));
     }
 
     [Fact]
     public void Validate_Passes_When_NamesUnique_And_DefaultConfigured()
     {
+        // Arrange
         var services = new ServiceCollection()
             .AddXModelBuilder()
             .AddModelBuilder<WidgetBuilderJoe>()
             .AddModelBuilder<WidgetBuilderJane>()
             .UseAsDefaultModelBuilder<WidgetBuilderJoe>();
 
+        // Act & Assert
         // Does not throw.
         services.ValidateXModelBuilderRegistrations();
     }
@@ -116,22 +128,28 @@ public class XModelBuilderServiceCollectionExtensionsTests
     [Fact]
     public void Validate_Throws_When_MultipleBuilders_And_No_Default()
     {
+        // Arrange
         var services = new ServiceCollection()
             .AddXModelBuilder()
             .AddModelBuilder<WidgetBuilderJoe>()
             .AddModelBuilder<WidgetBuilderJane>();
 
+        // Act
         var ex = Assert.Throws<InvalidOperationException>(() => services.ValidateXModelBuilderRegistrations());
+
+        // Assert
         Assert.Contains("no default is configured", ex.Message);
     }
 
     [Fact]
     public void Validate_SingleBuilder_NeedsNoDefault()
     {
+        // Arrange
         var services = new ServiceCollection()
             .AddXModelBuilder()
             .AddModelBuilder<WidgetBuilderJoe>();
 
+        // Act & Assert
         // A single builder is unambiguously the default; no configuration required.
         services.ValidateXModelBuilderRegistrations();
     }

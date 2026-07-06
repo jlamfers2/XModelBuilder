@@ -45,12 +45,15 @@ public class SpecFlowTableExtensionsTests
     [Fact]
     public void CreateModel_OnProviderFor_FromVerticalFieldValueTable_BuildsSingleInstance()
     {
+        // Arrange
         var table = new Table("Field", "Value");
         table.AddRow("Name", "John");
         table.AddRow("City", "Amsterdam");
 
+        // Act
         var person = CreateProvider().For<Person>().CreateModel(table);
 
+        // Assert
         Assert.Equal("John", person.Name);
         Assert.Equal("Amsterdam", person.City);
     }
@@ -58,11 +61,14 @@ public class SpecFlowTableExtensionsTests
     [Fact]
     public void CreateModel_OnProviderUse_FromHorizontalSingleRowTable_BuildsSingleInstance()
     {
+        // Arrange
         var table = new Table("Name", "City");
         table.AddRow("John", "Amsterdam");
 
+        // Act
         var person = CreateProvider().Use<PersonBuilder>().CreateModel(table);
 
+        // Assert
         Assert.Equal("John", person.Name);
         Assert.Equal("Amsterdam", person.City);
     }
@@ -70,13 +76,16 @@ public class SpecFlowTableExtensionsTests
     [Fact]
     public void CreateModel_PreservesPriorManualConfiguration()
     {
+        // Arrange
         var table = new Table("Name", "City");
         table.AddRow("John", "Amsterdam");
 
+        // Act
         var person = CreateProvider().For<Person>()
             .With(p => p.Country, "NL")
             .CreateModel(table);
 
+        // Assert
         Assert.Equal("John", person.Name);
         Assert.Equal("Amsterdam", person.City);
         Assert.Equal("NL", person.Country);
@@ -85,22 +94,27 @@ public class SpecFlowTableExtensionsTests
     [Fact]
     public void CreateModel_FromHorizontalMultiRowTable_Throws()
     {
+        // Arrange
         var table = new Table("Name", "City");
         table.AddRow("John", "Amsterdam");
         table.AddRow("Jane", "Utrecht");
 
+        // Act & Assert
         Assert.Throws<InvalidOperationException>(() => CreateProvider().For<Person>().CreateModel(table));
     }
 
     [Fact]
     public void CreateModels_OnProvider_FromHorizontalTable_BuildsOnePerRow()
     {
+        // Arrange
         var table = new Table("Name", "City");
         table.AddRow("John", "Amsterdam");
         table.AddRow("Jane", "Utrecht");
 
+        // Act
         var people = CreateProvider().CreateModels<Person>(table);
 
+        // Assert
         Assert.Equal(2, people.Count);
         Assert.Equal("John", people[0].Name);
         Assert.Equal("Amsterdam", people[0].City);
@@ -111,12 +125,15 @@ public class SpecFlowTableExtensionsTests
     [Fact]
     public void CreateModels_OnProvider_FromVerticalFieldValueTable_ReturnsSingleElementList()
     {
+        // Arrange
         var table = new Table("Field", "Value");
         table.AddRow("Name", "John");
         table.AddRow("City", "Amsterdam");
 
+        // Act
         var people = CreateProvider().CreateModels<Person>(table);
 
+        // Assert
         Assert.Single(people);
         Assert.Equal("John", people[0].Name);
         Assert.Equal("Amsterdam", people[0].City);
@@ -125,12 +142,15 @@ public class SpecFlowTableExtensionsTests
     [Fact]
     public void CreateModels_WithNamedBuilder_UsesThatBuilderForEveryRow()
     {
+        // Arrange
         var table = new Table("Name", "City");
         table.AddRow("John", "Amsterdam");
         table.AddRow("Jane", "Utrecht");
 
+        // Act
         var people = CreateProvider().CreateModels<Person>(table, "dutch-person");
 
+        // Assert
         Assert.Equal(2, people.Count);
         Assert.Equal("NL", people[0].Country);
         Assert.Equal("NL", people[1].Country);
@@ -139,9 +159,11 @@ public class SpecFlowTableExtensionsTests
     [Fact]
     public void CreateModels_WithUnknownBuilderName_Throws()
     {
+        // Arrange
         var table = new Table("Name", "City");
         table.AddRow("John", "Amsterdam");
 
+        // Act & Assert
         Assert.Throws<KeyNotFoundException>(() =>
             CreateProvider().CreateModels<Person>(table, "does-not-exist"));
     }

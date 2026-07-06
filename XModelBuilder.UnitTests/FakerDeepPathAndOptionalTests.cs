@@ -37,18 +37,21 @@ public class FakerDeepPathAndOptionalTests
     [Fact]
     public void DeepPath_Property_Then_Method()
     {
+        // Arrange, Act & Assert
         Assert.Equal("hello", Build(CreateProvider(), "Sub.Hello()"));
     }
 
     [Fact]
     public void DeepPath_IntermediateParameterlessMethod()
     {
+        // Arrange, Act & Assert
         Assert.Equal("hello", Build(CreateProvider(), "Make.Hello()"));
     }
 
     [Fact]
     public void DeepPath_TerminalProperty_Fallback()
     {
+        // Arrange, Act & Assert
         // "Greeting" is a property on Inner, reached through the method-then-property fallback.
         Assert.Equal("hi-property", Build(CreateProvider(), "Sub.Greeting()"));
     }
@@ -56,24 +59,28 @@ public class FakerDeepPathAndOptionalTests
     [Fact]
     public void DeepPath_UnknownSegment_Throws()
     {
+        // Arrange, Act & Assert
         Assert.Throws<KeyNotFoundException>(() => Build(CreateProvider(), "Sub.DoesNotExist()"));
     }
 
     [Fact]
     public void Optional_Omitted_UsesDefault()
     {
+        // Arrange, Act & Assert
         Assert.Equal("Hello, World", Build(CreateProvider(), "Greet(World)"));
     }
 
     [Fact]
     public void Optional_Provided_Overrides()
     {
+        // Arrange, Act & Assert
         Assert.Equal("Hi, World", Build(CreateProvider(), "Greet(World,Hi)"));
     }
 
     [Fact]
     public void Optional_OnDeepPathMethod()
     {
+        // Arrange, Act & Assert
         Assert.Equal("a!", Build(CreateProvider(), "Sub.Echo(a)"));
         Assert.Equal("aX", Build(CreateProvider(), "Sub.Echo(a,X)"));
     }

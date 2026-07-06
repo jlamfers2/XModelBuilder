@@ -50,6 +50,17 @@ voor API-details, algoritmes en randgevallen; werk het bij als gedrag verandert.
 - Doelplatform **net10.0**, `Nullable` enable, `ImplicitUsings` enable — voor alle projecten.
 - Tests: **xUnit**. Nieuwe kernfeatures krijgen tests in `XModelBuilder.UnitTests`;
   faker/Gherkin-features in het bijbehorende `*.UnitTests`-project.
+- **Elke** unittest heeft in zijn body de comments `// Arrange`, `// Act` en `// Assert`
+  (in die volgorde), die de drie fasen markeren. Dit geldt voor iedere bestaande én nieuw
+  toegevoegde test. Gebruik een block-body (geen expression-body) zodat de comments passen;
+  als een fase samenvalt met een andere (bv. een one-liner die aanroept én assert), combineer
+  dan de markers, bv. `// Act & Assert`.
+- **Nieuw toegevoegde files** krijgen Engelstalige XML-doc-headers op **alle `public` en
+  `protected` members** (types, methods, properties, constructors, fields): `<summary>`, plus
+  `<param>`/`<typeparam>` voor elke parameter/typeparameter, `<returns>` bij een returnwaarde,
+  en `<exception>` voor elke exceptie die als onderdeel van het contract wordt gegooid. `internal`/
+  `private` members mogen kort of ongedocumenteerd blijven. (Bestaande files vul je aan wanneer je
+  ze toch aanraakt.)
 - `XModelBuilder` heeft `InternalsVisibleTo` naar `XModelBuilder.UnitTests`, dus `internal`
   types (Core-laag) zijn daar direct testbaar.
 - Kernproject hangt bewust aan de **volledige** `Microsoft.Extensions.DependencyInjection`

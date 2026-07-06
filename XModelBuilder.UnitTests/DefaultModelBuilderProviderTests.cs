@@ -69,24 +69,29 @@ public class DefaultModelBuilderProviderTests
     [Fact]
     public void For_Resolves_ConfiguredDefault_RegardlessOfRegistrationOrder()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current
             .AddModelBuilder<GadgetBuilderBeta>()
             .AddModelBuilder<GadgetBuilderGamma>()
             .AddModelBuilder<GadgetBuilderAlpha>()
             .UseAsDefaultModelBuilder<GadgetBuilderAlpha>();
 
+        // Act
         var gadget = DefaultModelBuilderProvider.Current.For<Gadget>().Build();
 
+        // Assert
         Assert.Equal("Alpha", gadget.Name);
     }
 
     [Fact]
     public void For_MultipleBuilders_NoDefaultConfigured_Throws()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current
             .AddModelBuilder<FirstGadgetBuilder>()
             .AddModelBuilder<SecondGadgetBuilder>();
 
+        // Act & Assert
         Assert.Throws<InvalidOperationException>(
             () => DefaultModelBuilderProvider.Current.For<MultiBuilderGadget>());
     }
@@ -94,24 +99,30 @@ public class DefaultModelBuilderProviderTests
     [Fact]
     public void For_With_Name_Resolves_Explicitly_Named_Builder()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current
             .AddModelBuilder<GadgetBuilderAlpha>()
             .AddModelBuilder<GadgetBuilderBeta>();
 
+        // Act
         var gadget = DefaultModelBuilderProvider.Current.For<Gadget>("beta").Build();
 
+        // Assert
         Assert.Equal("Beta", gadget.Name);
     }
 
     [Fact]
     public void For_With_Name_Resolves_Explicitly_Typed_Builder()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current
             .AddModelBuilder<GadgetBuilderAlpha>()
             .AddModelBuilder<GadgetBuilderBeta>();
 
+        // Act
         var gadget = DefaultModelBuilderProvider.Current.Use<GadgetBuilderBeta>().Build();
 
+        // Assert
         Assert.Equal("Beta", gadget.Name);
     }
 
@@ -119,8 +130,10 @@ public class DefaultModelBuilderProviderTests
     [Fact]
     public void For_With_Unknown_Name_Throws()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current.AddModelBuilder<GadgetBuilderAlpha>();
 
+        // Act & Assert
         Assert.Throws<KeyNotFoundException>(
             () => DefaultModelBuilderProvider.Current.For<Gadget>("does-not-exist"));
     }
@@ -150,42 +163,54 @@ public class DefaultModelBuilderProviderTests
     [Fact]
     public void AddFaker_Instance_IsUsableViaToken()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current.AddFaker(new GadgetFakers());
 
+        // Act
         var gadget = DefaultModelBuilderProvider.Current.For<FakerGadget>().With("Name", "RandomGadgetName()").Build();
 
+        // Assert
         Assert.Equal("RandomGadget", gadget.Name);
     }
 
     [Fact]
     public void AddFaker_Type_LetsContainerInjectItsOwnDependencies()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current
             .AddServices(s => s.AddSingleton<GadgetMarkerService>())
             .AddFaker<InjectedDependencyFakers>();
 
+        // Act
         var gadget = DefaultModelBuilderProvider.Current.For<FakerGadget>().With("Name", "FromService()").Build();
 
+        // Assert
         Assert.Equal("gadget-marker", gadget.Name);
     }
 
     [Fact]
     public void Faker_ResolvesTypedFakerDirectly()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current.AddFaker(new GadgetFakers());
 
+        // Act
         var faker = DefaultModelBuilderProvider.Current.Faker<GadgetFakers>();
 
+        // Assert
         Assert.Equal("RandomGadget", faker.RandomGadgetName());
     }
 
     [Fact]
     public void UseFaker_StaticFacade_ResolvesSameAsProvider()
     {
+        // Arrange
         DefaultModelBuilderProvider.Current.AddFaker(new GadgetFakers());
 
+        // Act
         var faker = Use.Faker<GadgetFakers>();
 
+        // Assert
         Assert.Equal("RandomGadget", faker.RandomGadgetName());
     }
 
@@ -197,14 +222,17 @@ public class DefaultModelBuilderProviderTests
     [Fact]
     public void AddOptions_Configure_TakesEffect()
     {
+        // Arrange
         // nl-NL uses ',' as the decimal separator - InvariantCulture (the default) would throw a
         // FormatException trying to parse this as a decimal. This used to be silently ignored due
         // to a bug where the configure delegate was applied to the options instance about to be
         // discarded, instead of the one that became live.
         DefaultModelBuilderProvider.Current.AddOptions(o => o.DefaultCulture = System.Globalization.CultureInfo.GetCultureInfo("nl-NL"));
 
+        // Act
         var gadget = DefaultModelBuilderProvider.Current.For<CultureGadget>().With("Price", "1234,56").Build();
 
+        // Assert
         Assert.Equal(1234.56m, gadget.Price);
     }
 }

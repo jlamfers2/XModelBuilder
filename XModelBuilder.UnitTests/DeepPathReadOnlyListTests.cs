@@ -29,6 +29,7 @@ public class DeepPathReadOnlyListTests
     [Fact]
     public void IndexedDeepPath_IntoReadOnlyListOfObjects_GrowsAndSetsElements()
     {
+        // Arrange & Act
         var doc = Provider().For<Doc>()
             .With("Lines[0].Sku", "BOEK1")
             .With("Lines[0].Aantal", "2")
@@ -36,6 +37,7 @@ public class DeepPathReadOnlyListTests
             .With("Lines[1].Aantal", "1")
             .Build();
 
+        // Assert
         Assert.Equal(2, doc.Lines.Count);
         Assert.Equal("BOEK1", doc.Lines[0].Sku);
         Assert.Equal(2, doc.Lines[0].Aantal);
@@ -46,11 +48,13 @@ public class DeepPathReadOnlyListTests
     [Fact]
     public void IndexedDeepPath_IntoReadOnlyListOfScalars_GrowsAndSetsElements()
     {
+        // Arrange & Act
         var doc = Provider().For<Doc>()
             .With("Tags[0]", "a")
             .With("Tags[2]", "c")     // gat op index 1 wordt opgevuld
             .Build();
 
+        // Assert
         Assert.Equal(3, doc.Tags.Count);
         Assert.Equal("a", doc.Tags[0]);
         Assert.Equal("c", doc.Tags[2]);

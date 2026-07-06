@@ -1,4 +1,4 @@
-﻿using XModelBuilder.Core;
+using XModelBuilder.Core;
 
 namespace XModelBuilder.UnitTests;
 
@@ -9,32 +9,45 @@ public class DataParserTests
     [Fact]
     public void Parse_String_All_Escape_Branches()
     {
+        // Arrange
         // \\, \", \n, \r, \t en unknown escape -> backslash+char blijft staan
         var input = "\"a\\\\b\\\"c\\nd\\re\\tfg\"";
+
+        // Act
         var result = _sut.Parse(input);
 
+        // Assert
         Assert.Equal("a\\b\"c\nd\re\tfg", result);
     }
 
     [Fact]
     public void Parse_Empty_String()
     {
+        // Arrange & Act
         var result = _sut.Parse("\"\"");
+
+        // Assert
         Assert.Equal(string.Empty, result);
     }
 
     [Fact]
     public void Parse_Token_With_Whitespace_And_Newlines()
     {
+        // Arrange & Act
         // SkipInsignificants slikt spaties/tabs/nl/cr
         var result = _sut.Parse(" \n\t  hello\r\n ");
+
+        // Assert
         Assert.Equal("hello", result);
     }
 
     [Fact]
     public void Parse_Array_Empty()
     {
+        // Arrange & Act
         var result = _sut.Parse("[]");
+
+        // Assert
         var arr = Assert.IsType<object?[]>(result);
         Assert.Empty(arr);
     }
@@ -42,8 +55,10 @@ public class DataParserTests
     [Fact]
     public void Parse_Array_Mixed_And_Nested()
     {
+        // Arrange & Act
         var result = _sut.Parse("[\"x\",y,[\"z\"],{a:1,\"b\":\"2\"}]");
 
+        // Assert
         var arr = Assert.IsType<object?[]>(result);
         Assert.Equal(4, arr.Length);
 
@@ -62,7 +77,10 @@ public class DataParserTests
     [Fact]
     public void Parse_Object_Empty()
     {
+        // Arrange & Act
         var result = _sut.Parse("{}");
+
+        // Assert
         var obj = Assert.IsType<Dictionary<string, object>>(result);
         Assert.Empty(obj);
     }
@@ -70,8 +88,10 @@ public class DataParserTests
     [Fact]
     public void Parse_Object_Unquoted_And_Quoted_Keys()
     {
+        // Arrange & Act
         var result = _sut.Parse("{a:1,\"b\":2}");
 
+        // Assert
         var obj = Assert.IsType<Dictionary<string, object>>(result);
         Assert.Equal("1", obj["a"]);
         Assert.Equal("2", obj["b"]);
@@ -80,8 +100,10 @@ public class DataParserTests
     [Fact]
     public void Parse_Object_Nested()
     {
+        // Arrange & Act
         var result = _sut.Parse("{outer:{inner:[1,2,\"3\"]}}");
 
+        // Assert
         var obj = Assert.IsType<Dictionary<string, object>>(result);
         var outer = Assert.IsType<Dictionary<string, object>>(obj["outer"]);
 
@@ -95,36 +117,42 @@ public class DataParserTests
     [Fact]
     public void Parse_Rejects_Trailing_Garbage_After_Value()
     {
+        // Arrange, Act & Assert
         Assert.Throws<FormatException>(() => _sut.Parse("\"ok\" trailing"));
     }
 
     [Fact]
     public void Parse_Unterminated_String_Throws_FormatException()
     {
+        // Arrange, Act & Assert
         Assert.Throws<FormatException>(() => _sut.Parse("\"unterminated"));
     }
 
     [Fact]
     public void Parse_Array_Missing_EndBracket_Throws_FormatException()
     {
+        // Arrange, Act & Assert
         Assert.Throws<FormatException>(() => _sut.Parse("[1,2"));
     }
 
     [Fact]
     public void Parse_Object_Missing_EndBrace_Throws_FormatException()
     {
+        // Arrange, Act & Assert
         Assert.Throws<FormatException>(() => _sut.Parse("{a:1"));
     }
 
     [Fact]
     public void Parse_Object_Missing_Assignment_Throws_FormatException()
     {
+        // Arrange, Act & Assert
         Assert.Throws<FormatException>(() => _sut.Parse("{a 1}"));
     }
 
     [Fact]
     public void Parse_Array_Missing_Separator_Throws_FormatException()
     {
+        // Arrange, Act & Assert
         // Een ontbrekend scheidingsteken tussen twee gestructureerde elementen is nog steeds een fout.
         Assert.Throws<FormatException>(() => _sut.Parse("[{a:1}{b:2}]"));
     }
@@ -132,10 +160,12 @@ public class DataParserTests
     [Fact]
     public void Parse_Array_BareValueWithSpaces_IsSingleElement()
     {
+        // Arrange & Act
         // Whitespace is GEEN scheidingsteken meer (alleen ',' is dat): een unquoted waarde mag interne
         // spaties bevatten, met getrimde randen. Zo werkt de "non-verbose" tabelvorm ("Clean Code").
         var result = (object[])_sut.Parse("[1 2]");
 
+        // Assert
         Assert.Single(result);
         Assert.Equal("1 2", result[0]);
     }
@@ -143,10 +173,12 @@ public class DataParserTests
     [Fact]
     public void Parse_BareObject_WithoutBraces_ParsesKeyValues()
     {
+        // Arrange & Act
         // ParseObject accepteert ook een "bare" object zonder { } op het top-niveau.
         var result = _sut.ParseObject("Straat:Hoofdstraat,Postcode:1234 AB")
             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
+        // Assert
         Assert.Equal("Hoofdstraat", result["Straat"]);
         Assert.Equal("1234 AB", result["Postcode"]);
     }

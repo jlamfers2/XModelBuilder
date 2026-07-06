@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using XModelBuilder.Core;
 
 namespace XModelBuilder.UnitTests;
@@ -39,7 +39,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_NullableValueType_ReturnsAliasedTypeWithQuestionMark()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(int?).GetFriendlyName();
 
         // Assert
@@ -49,7 +49,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_SingleDimensionalArray_ReturnsElementNameWithBrackets()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(string[]).GetFriendlyName();
 
         // Assert
@@ -59,7 +59,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_MultiDimensionalArray_ReturnsElementNameWithCorrectRank()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(int[,,]).GetFriendlyName();
 
         // Assert
@@ -69,7 +69,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_SimpleAliasedType_ReturnsCSharpAlias()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(int).GetFriendlyName();
 
         // Assert
@@ -79,7 +79,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_SimpleNonAliasedType_WithAndWithoutNamespace()
     {
-        // Act
+        // Arrange & Act
         var withoutNamespace = typeof(FriendlyNameExtensions).GetFriendlyName();
         var withNamespace = typeof(FriendlyNameExtensions).GetFriendlyName(includeNamespace: true);
 
@@ -91,7 +91,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_ClosedGenericType_WithoutNamespace_FormatsCorrectly()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(List<string>).GetFriendlyName();
 
         // Assert
@@ -101,7 +101,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_ClosedGenericType_WithNamespace_FormatsCorrectly()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(Dictionary<string, int>).GetFriendlyName(includeNamespace: true);
 
         // Assert
@@ -111,7 +111,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_OpenGenericTypeDefinition_WithoutNamespace_UsesGenericParameterNames()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(Dictionary<,>).GetFriendlyName();
 
         // Assert
@@ -121,7 +121,7 @@ public class FriendlyNameExtensionsTests
     [Fact]
     public void GetFriendlyName_OpenGenericTypeDefinition_WithNamespace_UsesGenericParameterNames()
     {
-        // Act
+        // Arrange & Act
         var friendlyName = typeof(Dictionary<,>).GetFriendlyName(includeNamespace: true);
 
         // Assert

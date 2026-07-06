@@ -23,6 +23,7 @@ public class ConfigurableVerticalHeaderTests
     [Fact]
     public void VerticalTableHeaders_AreConfigurable_ForOtherLanguages()
     {
+        // Arrange
         var original = SpecFlowTableExtensions.VerticalTableHeaders;
         try
         {
@@ -33,9 +34,11 @@ public class ConfigurableVerticalHeaderTests
             table.AddRow("Name", "John");
             table.AddRow("City", "Amsterdam");
 
+            // Act
             // Zonder de conventie zou dit als een horizontale tabel (2 rijen) gelezen worden en falen.
             var person = CreateProvider().For<Person>().CreateModel(table);
 
+            // Assert
             Assert.Equal("John", person.Name);
             Assert.Equal("Amsterdam", person.City);
         }
@@ -48,11 +51,13 @@ public class ConfigurableVerticalHeaderTests
     [Fact]
     public void UnconfiguredHeader_IsTreatedAsHorizontal()
     {
+        // Arrange
         // "Champ/Valeur" staat NIET in de default-conventies -> horizontaal -> 2 datarijen -> CreateModel faalt.
         var table = new Table("Champ", "Valeur");
         table.AddRow("Name", "John");
         table.AddRow("City", "Amsterdam");
 
+        // Act & Assert
         Assert.Throws<InvalidOperationException>(() => CreateProvider().For<Person>().CreateModel(table));
     }
 }

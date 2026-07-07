@@ -445,7 +445,7 @@ Gherkin table, see chapter 18). Each entry is evaluated separately: if the key e
 matches (without a dot) a constructor parameter, it is used as a constructor argument;
 otherwise it becomes a deep-path setting.
 
-**f) `WithBuilder<TValue>(Expression<Func<TModel,TValue>> getter, string builderName) where TValue : class`**
+**f) `WithBuilder<TValue>(Expression<Func<TModel,TValue>> getter, string builderName) where TValue : class?`**
 The lambda equivalent of the named-builder-reference syntax (chapter 5/10): sets the
 property to the result of building the builder registered under `[ModelBuilder(builderName)]`
 for `TValue`, so functionally equal to
@@ -471,6 +471,37 @@ the correct provider for THIS builder:
 No overload ambiguity with form (b): `Func<TValue?>` and
 `Func<IModelBuilderProvider,TValue?>` can always be distinguished by the number of lambda
 parameters.
+
+**h) `WithDefault<TValue>(Expression<Func<TModel,TValue>> getter) where TValue : class?`**
+The lambda equivalent of the `"default()"` token (chapter 10) for a complex member type:
+sets the property to a fresh instance built through the DEFAULT builder for `TValue` (so
+that type's `SetDefaults()` runs), functionally equal to
+`With(getter, () => xprovider.For<TValue>().Build())`. It is to `default()` exactly what
+form (f) `WithBuilder` is to a named-builder reference: a refactor-safe, discoverable typed
+alternative to `With("Member", "default()")`. Like the other value-producing forms it is
+evaluated lazily at `Build()` and routed into construction when the member maps to a
+constructor parameter. A `string`-typed member yields `null`, matching the `"default()"`
+token. The constraint is `class?` (not `class`) so that a nullable-annotated member such as
+`Address?` does not warn at the call site.
+
+Composing `WithDefault` inside each builder's `SetDefaults()` lets an object graph fill
+itself, one EXPLICIT level per builder - each builder is responsible only for its own direct
+members:
+
+```csharp
+[ModelBuilder("person")]
+public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<PersonBuilder, Person>(options, xprovider)
+{
+    protected override void SetDefaults() => WithDefault(p => p.Address); // Address fills itself
+}
+```
+
+Building a `Person` now yields a populated `Address` (and whatever `AddressBuilder` in turn
+fills), without `PersonBuilder` knowing anything about the levels below `Address`. This is a
+deliberate, explicit alternative to a single all-knowing "build the whole graph deep" method:
+there is no framework-wide recursion, so there is nothing to guard against cycles - a
+back-reference is simply a `WithDefault` you do not write.
 
 **`Reset()`**
 Clears all previously supplied `With` settings and constructor arguments, and calls
@@ -1183,6 +1214,16 @@ fallback, used by both `CreateInstance()` (step b) and the `"new()"` token in Va
    supplied: apply it to the freshly created instance (chapter 7).
 3. Return the instance.
 
+**Cyclic-build guard.** A thread-local guard tracks the chain of model types currently being
+built. Because EVERY nested model build funnels through a builder's `Build()` - whether triggered
+by `WithDefault`, `WithBuilder`, a `"default()"` or named-builder string value, an auto-vivified
+nested path, or a built list element - a type that (transitively) ends up building itself is
+detected and a clear `InvalidOperationException` (with the cycle path) is thrown, INSTEAD of an
+unrecoverable `StackOverflowException`. A re-entered type always means genuinely infinite recursion,
+since builders configure their defaults declaratively (the same nested build would repeat forever),
+so this is never a false positive. The guard is per-thread and unwinds via `try/finally`, so a
+caught cycle leaves no stale state and independent sibling members of the same type are not affected.
+
 **`Reset()`:**
 Clears the internal list of deep-path settings and the table of constructor arguments, and
 calls `SetDefaults()` again.
@@ -1225,6 +1266,7 @@ calls `SetDefaults()` again.
 | `Core/StringPathSetter.cs` | applies string deep paths to an object (chapter 7) |
 | `Core/LambdaPathSetter.cs` | applies lambda-expression deep paths to an object (chapter 7) |
 | `Core/Instantiator.cs` | "always an instance" fallback (chapter 15) |
+| `Core/BuildReentrancyGuard.cs` | thread-local cyclic-build guard: turns a self-building model graph into a catchable `InvalidOperationException` instead of a `StackOverflowException` (chapter 15) |
 | `Core/HelperExtensions.cs` | reflection helpers: member resolution (`TryGetWritableMember`), member get/set, list element type detection, list growing, lambda path parsing, `ModelBuilderAttribute` name resolution (`GetModelBuilderName`, `HasModelBuilderName`, `GetModelType`), Dictionary/HashSet type-argument detection (`GetDictionaryTypeArgumentsOrNull`, `GetSetElementTypeOrNull`) |
 | `Core/FriendlyNameExtensions.cs` | readable type names for error messages (e.g. `"List<Person>"` instead of `"List\`1"`) |
 
@@ -1254,6 +1296,7 @@ public interface IModelBuilder
     IModelBuilder With(LambdaExpression memberPath, Func<IModelBuilderProvider, object?> valueFactory);
     IModelBuilder With(string memberPath, string value);
     IModelBuilder WithBuilder(LambdaExpression memberPath, string builderName);
+    IModelBuilder WithDefault(LambdaExpression memberPath);   // typed "default()" (chapter 6h)
     IModelBuilder WithValues(IEnumerable<KeyValuePair<string, string?>> values);
     object Build();
     object Extend(object instance);   // builds onto an existing instance (chapter 12.1)
@@ -1269,7 +1312,8 @@ public interface IModelBuilder<TModel>
     IModelBuilder<TModel> With<TValue>(Expression<Func<TModel, TValue>> getter, Func<TValue?> valueFactory);
     IModelBuilder<TModel> With<TValue>(Expression<Func<TModel, TValue>> getter, Func<IModelBuilderProvider, TValue?> valueFactory);
     IModelBuilder<TModel> With(string memberPath, string value);
-    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class;
+    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class?;
+    IModelBuilder<TModel> WithDefault<TValue>(Expression<Func<TModel, TValue>> getter) where TValue : class?;   // typed "default()" (chapter 6h)
     IModelBuilder<TModel> WithValues(IEnumerable<KeyValuePair<string, string?>> values);
     TModel Build();
     TModel Extend(TModel instance);   // builds onto an existing instance (chapter 12.1)

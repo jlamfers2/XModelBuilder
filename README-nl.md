@@ -456,7 +456,7 @@ beoordeeld: als de key exact (zonder punt) overeenkomt met een
 constructor-parameter, wordt die als constructor-argument gebruikt;
 anders wordt het een deep-path-instelling.
 
-**f) `WithBuilder<TValue>(Expression<Func<TModel,TValue>> getter, string builderName) where TValue : class`**
+**f) `WithBuilder<TValue>(Expression<Func<TModel,TValue>> getter, string builderName) where TValue : class?`**
 Lambda-equivalent van de named-builder-reference-syntax (hoofdstuk 5/10):
 zet de property op het resultaat van het bouwen van de builder die
 geregistreerd staat onder `[ModelBuilder(builderName)]` voor `TValue`, dus
@@ -483,6 +483,38 @@ vorm krijgt de factory ALTIJD de juiste provider voor déze builder:
 Geen overload-ambiguïteit met vorm (b): `Func<TValue?>` en
 `Func<IModelBuilderProvider,TValue?>` zijn altijd te onderscheiden op het
 aantal lambda-parameters.
+
+**h) `WithDefault<TValue>(Expression<Func<TModel,TValue>> getter) where TValue : class?`**
+Lambda-equivalent van het `"default()"`-token (hoofdstuk 10) voor een complex
+member-type: zet de property op een verse instantie, gebouwd via de DEFAULT-builder
+voor `TValue` (dus die type's `SetDefaults()` draait), functioneel gelijk aan
+`With(getter, () => xprovider.For<TValue>().Build())`. Het verhoudt zich tot
+`default()` precies zoals vorm (f) `WithBuilder` zich verhoudt tot een
+named-builder-referentie: een refactor-veilig, ontdekbaar getypeerd alternatief voor
+`With("Member", "default()")`. Net als de andere waarde-producerende vormen wordt het
+lazy geëvalueerd bij `Build()` en doorgesluisd naar de constructor als de member een
+constructor-parameter is. Een `string`-member levert `null` op, net als het
+`"default()"`-token. De constraint is `class?` (niet `class`) zodat een nullable-
+geannoteerde member zoals `Address?` geen waarschuwing geeft op de aanroepplek.
+
+Door `WithDefault` in elke builder's `SetDefaults()` samen te stellen, vult een
+objectgraaf zichzelf, één EXPLICIET niveau per builder - elke builder is alleen
+verantwoordelijk voor z'n eigen directe members:
+
+```csharp
+[ModelBuilder("person")]
+public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<PersonBuilder, Person>(options, xprovider)
+{
+    protected override void SetDefaults() => WithDefault(p => p.Address); // Address vult zichzelf
+}
+```
+
+Een `Person` bouwen levert nu een gevulde `Address` op (plus wat `AddressBuilder` op
+zijn beurt vult), zonder dat `PersonBuilder` iets weet van de niveaus onder `Address`.
+Dit is een bewust, expliciet alternatief voor één alwetende "bouw de hele graaf diep"-
+methode: er is geen framework-brede recursie, dus valt er ook niets tegen cycli te
+bewaken - een back-reference is simpelweg een `WithDefault` die je niet schrijft.
 
 **`Reset()`**
 Wist alle eerder opgegeven `With`-instellingen en constructor-argumenten,
@@ -1278,6 +1310,17 @@ ook gebeurt"-fallback, gebruikt door zowel `CreateInstance()` (stap b) als het
    (hoofdstuk 7).
 3. Retourneer de instantie.
 
+**Cyclus-guard.** Een thread-lokale guard houdt de keten van model-types bij die momenteel
+gebouwd worden. Omdat ELKE geneste model-build via de `Build()` van een builder loopt - of die nu
+door `WithDefault`, `WithBuilder`, een `"default()"`- of named-builder-stringwaarde, een
+auto-vivified nested pad, of een gebouwd list-element wordt getriggerd - wordt een type dat
+(transitief) zichzelf gaat bouwen gedetecteerd en volgt een duidelijke `InvalidOperationException`
+(met het cyclus-pad), IN PLAATS VAN een niet-herstelbare `StackOverflowException`. Een herhaald type
+betekent altijd echt oneindige recursie, want builders configureren hun defaults declaratief
+(dezelfde geneste build zou zich eindeloos herhalen), dus dit is nooit een false-positive. De guard
+is per-thread en wordt via `try/finally` afgebouwd, zodat een afgevangen cyclus geen stale state
+achterlaat en onafhankelijke sibling-members van hetzelfde type niet worden geraakt.
+
 **`Reset()`:**
 Wist de interne lijst van deep-path-instellingen en de tabel met
 constructor-argumenten, en roept `SetDefaults()` opnieuw aan.
@@ -1320,6 +1363,7 @@ behalve `FriendlyNameExtensions` dat publiek is voor foutmeldingen):
 | `Core/StringPathSetter.cs` | past string-deep-paths toe op een object (hoofdstuk 7) |
 | `Core/LambdaPathSetter.cs` | past lambda-expressie-deep-paths toe op een object (hoofdstuk 7) |
 | `Core/Instantiator.cs` | "altijd een instantie"-fallback (hoofdstuk 15) |
+| `Core/BuildReentrancyGuard.cs` | thread-lokale cyclus-guard: maakt van een zichzelf-bouwende modelgraaf een vangbare `InvalidOperationException` in plaats van een `StackOverflowException` (hoofdstuk 15) |
 | `Core/HelperExtensions.cs` | reflectie-hulpfuncties: memberresolutie (`TryGetWritableMember`), member get/set, listelement-type-detectie, lijst-vergroting, lambda-padontleding, `ModelBuilderAttribute`-naamresolutie (`GetModelBuilderName`, `HasModelBuilderName`, `GetModelType`), Dictionary-/HashSet-typeargument-detectie (`GetDictionaryTypeArgumentsOrNull`, `GetSetElementTypeOrNull`) |
 | `Core/FriendlyNameExtensions.cs` | leesbare typenamen voor foutmeldingen (bv. `"List<Person>"` i.p.v. `"List\`1"`) |
 
@@ -1350,6 +1394,7 @@ public interface IModelBuilder
     IModelBuilder With(LambdaExpression memberPath, Func<IModelBuilderProvider, object?> valueFactory);
     IModelBuilder With(string memberPath, string value);
     IModelBuilder WithBuilder(LambdaExpression memberPath, string builderName);
+    IModelBuilder WithDefault(LambdaExpression memberPath);   // getypeerd "default()" (hoofdstuk 6h)
     IModelBuilder WithValues(IEnumerable<KeyValuePair<string, string?>> values);
     object Build();
     object Extend(object instance);   // bouwt op een bestaande instance (hoofdstuk 12.1)
@@ -1365,7 +1410,8 @@ public interface IModelBuilder<TModel>
     IModelBuilder<TModel> With<TValue>(Expression<Func<TModel, TValue>> getter, Func<TValue?> valueFactory);
     IModelBuilder<TModel> With<TValue>(Expression<Func<TModel, TValue>> getter, Func<IModelBuilderProvider, TValue?> valueFactory);
     IModelBuilder<TModel> With(string memberPath, string value);
-    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class;
+    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class?;
+    IModelBuilder<TModel> WithDefault<TValue>(Expression<Func<TModel, TValue>> getter) where TValue : class?;   // getypeerd "default()" (hoofdstuk 6h)
     IModelBuilder<TModel> WithValues(IEnumerable<KeyValuePair<string, string?>> values);
     TModel Build();
     TModel Extend(TModel instance);   // bouwt op een bestaande instance (hoofdstuk 12.1)

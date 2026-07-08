@@ -8,6 +8,8 @@
 
 **Deterministische testdata voor .NET — zonder voor elke klasse een builder te schrijven.**
 
+> 📖 Nieuw hier? Lees het intro-artikel: [Stop writing a test-data builder for every class in .NET](https://dev.to/jlamfers2/stop-writing-a-test-data-builder-for-every-class-in-net-4k6n) (Engelstalig).
+
 XModelBuilder geeft je out of the box een fluent Test Data Builder voor *elke* C#-klasse:
 constructor-parameters, init-only properties, read-only members, private backing
 fields — het werkt gewoon. Configureer waarden met sterk getypeerde lambda's in code, of

@@ -8,6 +8,8 @@
 
 **Deterministic test data for .NET — without writing a builder for every class.**
 
+> 📖 New here? Read the intro article: [Stop writing a test-data builder for every class in .NET](https://dev.to/jlamfers2/stop-writing-a-test-data-builder-for-every-class-in-net-4k6n).
+
 XModelBuilder gives you a fluent Test Data Builder for *any* C# class out of the box:
 constructor parameters, init-only properties, read-only members, private backing
 fields — it just works. Configure values with strongly-typed lambdas in code, or

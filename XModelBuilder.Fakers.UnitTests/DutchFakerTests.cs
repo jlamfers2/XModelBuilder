@@ -210,6 +210,7 @@ public class DutchFakerTests
         var nl = Nl(11);
         var allowed = new Regex("^(" + string.Join("|", new[]
         {
+            @"[BDFGHJKLMNPRSTVXZ]{3}-\d{2}-[BDFGHJKLMNPRSTVXZ]",
             @"[BDFGHJKLMNPRSTVXZ]{2}-\d{3}-[BDFGHJKLMNPRSTVXZ]",
             @"[BDFGHJKLMNPRSTVXZ]-\d{3}-[BDFGHJKLMNPRSTVXZ]{2}",
             @"\d{2}-[BDFGHJKLMNPRSTVXZ]{3}-\d",

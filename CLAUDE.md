@@ -29,7 +29,6 @@ translation of the same spec, kept in sync.)
 | `XModelBuilder.Benchmarks` | Benchmarks |
 | `Demo/XModelBuilder.Demo.Shop` | Demo web shop (ASP.NET Core Web API, EF Core/SQL Server) |
 | `Demo/XModelBuilder.Demo.Shop.IntegrationTests` | Reqnroll integration tests of the demo (see `Demo/README.md`) |
-| `__old_samples` | Obsolete; do not use |
 
 ## Core structure of the main project
 

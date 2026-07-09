@@ -8,9 +8,9 @@ public class BuildRecursionGuardTests
 {
     // ---- Models ---------------------------------------------------------------------------------
 
-    // Direct self-reference: a Vader has a Kind, a Kind has a Vader (Vader -> Kind -> Vader).
-    public class Vader { public Kind? Kind { get; set; } }
-    public class Kind { public Vader? Vader { get; set; } }
+    // Direct self-reference: a Father has a Child, a Child has a Father (Father -> Child -> Father).
+    public class Father { public Child? Child { get; set; } }
+    public class Child { public Father? Father { get; set; } }
 
     // A type whose member is itself (used across the different triggering mechanisms).
     public class Node { public string? Name { get; set; } public Node? Next { get; set; } }
@@ -23,18 +23,18 @@ public class BuildRecursionGuardTests
 
     // ---- Builders -------------------------------------------------------------------------------
 
-    [ModelBuilder("vader")]
-    public sealed class VaderBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<VaderBuilder, Vader>(options, xprovider)
+    [ModelBuilder("father")]
+    public sealed class FatherBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<FatherBuilder, Father>(options, xprovider)
     {
-        protected override void SetDefaults() => WithDefault(v => v.Kind);
+        protected override void SetDefaults() => WithDefault(v => v.Child);
     }
 
-    [ModelBuilder("kind")]
-    public sealed class KindBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<KindBuilder, Kind>(options, xprovider)
+    [ModelBuilder("child")]
+    public sealed class ChildBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<ChildBuilder, Child>(options, xprovider)
     {
-        protected override void SetDefaults() => WithDefault(k => k.Vader);
+        protected override void SetDefaults() => WithDefault(k => k.Father);
     }
 
     // Cycle via WithDefault on the same type.
@@ -102,18 +102,18 @@ public class BuildRecursionGuardTests
     // ---- Tests ----------------------------------------------------------------------------------
 
     [Fact]
-    public void Mutual_Cycle_Vader_Kind_Vader_Throws_Instead_Of_StackOverflow()
+    public void Mutual_Cycle_Father_Child_Father_Throws_Instead_Of_StackOverflow()
     {
         // Arrange
-        var xprovider = Provider(typeof(VaderBuilder), typeof(KindBuilder));
+        var xprovider = Provider(typeof(FatherBuilder), typeof(ChildBuilder));
 
         // Act
-        var ex = Assert.Throws<InvalidOperationException>(() => xprovider.For<Vader>().Build());
+        var ex = Assert.Throws<InvalidOperationException>(() => xprovider.For<Father>().Build());
 
         // Assert
         Assert.Contains("Cyclic model build detected", ex.Message);
-        Assert.Contains("Vader", ex.Message);
-        Assert.Contains("Kind", ex.Message);
+        Assert.Contains("Father", ex.Message);
+        Assert.Contains("Child", ex.Message);
     }
 
     [Fact]

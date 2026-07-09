@@ -263,6 +263,66 @@ public class DutchFakerTests
     }
 
     [Fact]
+    public void EanCode_IsValid_Gtin13()
+    {
+        // Arrange
+        var nl = NL(123);
+
+        // Act
+        var values = Enumerable.Range(0, 200).Select(_ => nl.EanCode()).ToList();
+
+        // Assert
+        Assert.All(values, v =>
+        {
+            Assert.Matches(new Regex(@"^\d{13}$"), v);
+            Assert.True(Checksums.Gs1IsValid(v), $"Invalid EAN: {v}");
+        });
+    }
+
+    [Fact]
+    public void Bic_HasDutchBicShape()
+    {
+        // Arrange
+        var nl = NL();
+
+        // Act
+        var value = nl.Bic();
+
+        // Assert
+        Assert.Matches(new Regex(@"^[A-Z]{4}NL[A-Z0-9]{2}$"), value);
+    }
+
+    [Fact]
+    public void BigNummer_IsElevenDigits()
+    {
+        // Arrange
+        var nl = NL();
+
+        // Act & Assert
+        Assert.Matches(new Regex(@"^\d{11}$"), nl.BigNummer());
+    }
+
+    [Fact]
+    public void UzoviCode_IsFourDigits()
+    {
+        // Arrange
+        var nl = NL();
+
+        // Act & Assert
+        Assert.Matches(new Regex(@"^\d{4}$"), nl.UzoviCode());
+    }
+
+    [Fact]
+    public void Geslacht_IsOneOfTheKnownLabels()
+    {
+        // Arrange
+        var nl = NL();
+
+        // Act & Assert
+        Assert.Contains(nl.Geslacht(), new[] { "man", "vrouw", "onbekend" });
+    }
+
+    [Fact]
     public void SameSeed_ProducesIdenticalSequences()
     {
         // Arrange

@@ -1257,6 +1257,8 @@ calls `SetDefaults()` again.
 | `ModelBuilderOptions.cs` | `ModelBuilderOptions` | culture settings |
 | `ModelBuilderAttribute.cs` | `ModelBuilderAttribute` | mandatory, unique name tag for builders (chapter 5) |
 | `IFaker.cs` | `IFaker` | marker interface for faker classes (chapter 11) |
+| `RandomExtensions.cs` | `Digits`, `PickFrom`, `FromPattern` on `System.Random` | reusable faker building blocks (chapter 21.4) |
+| `Checksums.cs` | `Mod11WeightedSum`/`Mod11IsValid`, `LuhnCheckDigit`/`LuhnIsValid`, `Gs1CheckDigit`/`Gs1IsValid`, `Mod97` | country-agnostic check-digit algorithms (chapter 21.4) |
 | `ModelBuilderProviderExtensions.cs` | `BuildMany<TModel>(...)` on `IModelBuilderProvider` | extension methods (chapter 12) |
 | `ModelBuilderExtensions.cs` | `BuildMany<TModel>(...)` on `IModelBuilder<TModel>` | extension method (chapter 12) |
 | `Default/DefaultModelBuilder.cs` | `DefaultModelBuilder<TModel>` | "no defaults" builder |
@@ -2024,14 +2026,19 @@ services.AddXModelBuilder()
 | `nl.KvkNummer()` | KvK number, 8 digits | no public checksum |
 | `nl.Vestigingsnummer()` | KvK establishment number, 12 digits | no public checksum |
 | `nl.AgbCode()` | AGB healthcare-provider code, 8 digits | no public checksum |
+| `nl.BigNummer()` | BIG healthcare-professional number, 11 digits | shape only |
+| `nl.UzoviCode()` | UZOVI health-insurer code, 4 digits | no public checksum |
 | `nl.Iban()` | Dutch IBAN `NL{2}{BANK}{10}` | ✅ mod-97 |
+| `nl.Bic()` | BIC/SWIFT of a Dutch bank, e.g. `INGBNL2A` | structural |
 | `nl.Bankrekeningnummer()` | classic (pre-IBAN) 9-digit account | ✅ bank elfproef |
+| `nl.EanCode()` | EAN-13 / GTIN-13 barcode, 13 digits | ✅ GS1 check digit |
 | `nl.Postcode()` | postcode `1234 AB` (avoids SS/SD/SA) | structural |
 | `nl.Kenteken()` | licence plate in a common sidecode | structural (no vowels/C/Q/W/Y) |
 | `nl.Mobiel()` | mobile number `06` + 8 digits | structural |
 | `nl.VastTelefoonnummer()` | landline (real area code + subscriber, 10 digits) | structural |
 | `nl.Paspoortnummer()` / `nl.Rijbewijsnummer()` | document / driving-licence number | shape only |
 | `nl.Provincie()` / `nl.Gemeente()` | a Dutch province / municipality name | - |
+| `nl.Geslacht()` | gender label: `man` / `vrouw` / `onbekend` | - |
 
 From C# you reach the same generators typed, via the `xprovider.NL()` convenience accessor (extension
 on `IModelBuilderProvider`):
@@ -2045,6 +2052,19 @@ var iban = xprovider.NL().Iban();     // typed, in plain C#
 
 `DutchFaker` registers its OWN seeded `Random` (like the Bogus integration registers its own Bogus
 `Faker`), so its seed stays independent from XFaker's and the two can coexist with different seeds.
+
+**Reusable building blocks (in the core `XModelBuilder` package).** The Dutch generators are thin
+wrappers over two small, country-agnostic public helpers you can use in your OWN fakers:
+
+- `RandomExtensions` - extension methods on `System.Random`: `Digits(n)`, `PickFrom(items)` and
+  `FromPattern("??-###-?", letters)` (`#` = digit, `?` = letter, everything else literal).
+- `Checksums` - check-digit algorithms that are NOT Dutch-specific: `Mod11WeightedSum`/`Mod11IsValid`
+  (the "elfproef" family, but also ISBN-10, ISSN, the Norwegian birth number), `LuhnCheckDigit`/
+  `LuhnIsValid` (credit cards, IMEI), `Gs1CheckDigit`/`Gs1IsValid` (EAN/GTIN/SSCC) and `Mod97` (IBAN).
+
+So a BSN is essentially `Mod11WeightedSum` over 8 random digits, and a valid EAN is
+`digits + Checksums.Gs1CheckDigit(digits)` - and the same helpers let you generate an ISBN or a Luhn
+number just as easily.
 
 ### 21.5 Using them together
 

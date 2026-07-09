@@ -1,13 +1,13 @@
-using System.Text;
-
 namespace XModelBuilder.Fakers.Dutch;
 
 /// <summary>
 /// The Dutch faker method surface: deterministic generators for Netherlands-specific identifiers and
-/// contact data - BSN, RSIN, BTW, KvK, postcode, kenteken, phone numbers, and more. Wherever an
-/// identifier carries an official check (the "elfproef" for BSN/RSIN/bank accounts, the ISO&#160;13616
-/// mod-97 check for IBAN), the generated value is a VALID one for that check, so it is accepted by
-/// systems that validate the structure. Values are fictitious and must only be used as test data.
+/// contact data - BSN, RSIN, BTW, KvK, IBAN, BIC, EAN, postcode, kenteken, phone numbers, and more.
+/// Wherever an identifier carries an official check (the "elfproef" for BSN/RSIN/bank accounts, the
+/// ISO&#160;13616 mod-97 check for IBAN, the GS1 check digit for EAN barcodes), the generated value is
+/// a VALID one for that check, so it is accepted by systems that validate the structure. Values are
+/// fictitious and must only be used as test data. The generators are thin wrappers over the shared,
+/// country-agnostic <see cref="Checksums"/> and <see cref="RandomExtensions"/> helpers in XModelBuilder.
 ///
 /// <para>
 /// This is the object exposed by the <see cref="DutchFaker"/> namespace member
@@ -31,6 +31,20 @@ public class DutchFakerApi(Random random)
     // Realistic IBAN bank codes (the 4-letter segment after the check digits).
     private static readonly string[] BankCodes =
         ["INGB", "RABO", "ABNA", "TRIO", "SNSB", "ASNB", "KNAB", "BUNQ", "RBRB", "FVLB"];
+
+    // Real BIC/SWIFT codes of Dutch banks.
+    private static readonly string[] Bics =
+        ["INGBNL2A", "RABONL2U", "ABNANL2A", "TRIONL2U", "SNSBNL2A", "ASNBNL2A",
+         "KNABNL2H", "BUNQNL2A", "RBRBNL21", "FVLBNL22", "DEUTNL2A", "BKMGNL2A"];
+
+    // Number-plate sidecodes in the '#'/'?' template grammar ('#' = digit, '?' = plate letter).
+    private static readonly string[] KentekenPatterns =
+        ["???-##-?", "??-###-?", "?-###-??", "##-???-#", "#-???-##", "##-??-##"];
+
+    // Weights for the first 8 digits of a 9-digit "elfproef" number (the 9th digit is the check).
+    private static readonly int[] ElfproefBodyWeights = [9, 8, 7, 6, 5, 4, 3, 2];
+
+    private static readonly string[] Geslachten = ["man", "vrouw", "onbekend"];
 
     // Landline area codes paired with the length of the subscriber number, so area + subscriber is
     // always 10 digits (3-digit area -> 7-digit subscriber, 4-digit area -> 6-digit subscriber).
@@ -123,14 +137,14 @@ public class DutchFakerApi(Random random)
     /// Fictitious - only for use as test data.
     /// </summary>
     /// <returns>A 9-digit BSN string that passes the 11-test.</returns>
-    public string Bsn() => ElfproefNumberBsn();
+    public string Bsn() => BsnLikeNumber();
 
     /// <summary>
     /// A valid RSIN (Rechtspersonen en Samenwerkingsverbanden Informatienummer): 9 digits that satisfy
     /// the same "elfproef" as the BSN.
     /// </summary>
     /// <returns>A 9-digit RSIN string that passes the 11-test.</returns>
-    public string Rsin() => ElfproefNumberBsn();
+    public string Rsin() => BsnLikeNumber();
 
     /// <summary>
     /// A BTW-nummer (VAT number) in the legal-entity format: <c>NL</c> + a 9-digit number that passes
@@ -139,19 +153,30 @@ public class DutchFakerApi(Random random)
     /// produces the classic rechtspersoon form.)
     /// </summary>
     /// <returns>A BTW-nummer string.</returns>
-    public string BtwNummer() => $"NL{ElfproefNumberBsn()}B{random.Next(1, 100):00}";
+    public string BtwNummer() => $"NL{BsnLikeNumber()}B{random.Next(1, 100):00}";
 
     /// <summary>A KvK-nummer (Chamber of Commerce number): 8 digits. There is no public checksum.</summary>
     /// <returns>An 8-digit KvK-nummer string.</returns>
-    public string KvkNummer() => $"{random.Next(1, 10)}{Digits(7)}";
+    public string KvkNummer() => random.Next(1, 10) + random.Digits(7);
 
     /// <summary>A vestigingsnummer (KvK establishment number): 12 digits. There is no public checksum.</summary>
     /// <returns>A 12-digit vestigingsnummer string.</returns>
-    public string Vestigingsnummer() => $"{random.Next(1, 10)}{Digits(11)}";
+    public string Vestigingsnummer() => random.Next(1, 10) + random.Digits(11);
 
     /// <summary>An AGB-code (healthcare provider code): 8 digits. There is no public checksum.</summary>
     /// <returns>An 8-digit AGB-code string.</returns>
-    public string AgbCode() => Digits(8);
+    public string AgbCode() => random.Digits(8);
+
+    /// <summary>
+    /// A BIG-nummer (healthcare professionals register): 11 digits. There is no public checksum, so
+    /// only the shape is realistic.
+    /// </summary>
+    /// <returns>An 11-digit BIG-nummer string.</returns>
+    public string BigNummer() => random.Next(1, 10) + random.Digits(10);
+
+    /// <summary>A UZOVI-code (health insurer identifier): 4 digits. There is no public checksum.</summary>
+    /// <returns>A 4-digit UZOVI-code string.</returns>
+    public string UzoviCode() => random.Digits(4);
 
     // --- Bank ---
 
@@ -163,18 +188,33 @@ public class DutchFakerApi(Random random)
     /// <returns>An 18-character Dutch IBAN string.</returns>
     public string Iban()
     {
-        var bank = BankCodes[random.Next(BankCodes.Length)];
-        var account = Digits(10);
-        var check = 98 - Mod97($"{bank}{account}NL00");
+        var bank = random.PickFrom(BankCodes);
+        var account = random.Digits(10);
+        var check = 98 - Checksums.Mod97($"{bank}{account}NL00");
         return $"NL{check:00}{bank}{account}";
     }
+
+    /// <summary>A BIC/SWIFT code of a Dutch bank, e.g. <c>INGBNL2A</c>.</summary>
+    /// <returns>An 8-character Dutch BIC string.</returns>
+    public string Bic() => random.PickFrom(Bics);
 
     /// <summary>
     /// A classic (pre-IBAN) Dutch bank account number: 9 digits that satisfy the bank "elfproef"
     /// (the weighted 9..1 sum is divisible by 11).
     /// </summary>
     /// <returns>A 9-digit bank account number string that passes the bank 11-test.</returns>
-    public string Bankrekeningnummer() => ElfproefNumberBank();
+    public string Bankrekeningnummer() => BankAccountNumber();
+
+    /// <summary>
+    /// A valid EAN-13 / GTIN-13 barcode: 12 random digits plus the GS1 mod-10 check digit,
+    /// e.g. <c>8712345678906</c>.
+    /// </summary>
+    /// <returns>A 13-digit barcode string with a valid GS1 check digit.</returns>
+    public string EanCode()
+    {
+        var body = random.Digits(12);
+        return body + Checksums.Gs1CheckDigit(body);
+    }
 
     // --- Address / contact ---
 
@@ -201,31 +241,14 @@ public class DutchFakerApi(Random random)
     /// using only the letters that are actually issued (no vowels, no C/Q/W/Y).
     /// </summary>
     /// <returns>A kenteken string such as <c>"GK-123-D"</c>.</returns>
-    public string Kenteken()
-    {
-        // A handful of real modern sidecodes; 'L' = allowed letter, 'D' = digit.
-        string[] patterns = ["LLL-DD-L", "LL-DDD-L", "L-DDD-LL", "DD-LLL-D", "D-LLL-DD", "DD-LL-DD"];
-        var pattern = patterns[random.Next(patterns.Length)];
-        var sb = new StringBuilder(pattern.Length);
-        foreach (var c in pattern)
-        {
-            sb.Append(c switch
-            {
-                'L' => PlateLetters[random.Next(PlateLetters.Length)],
-                'D' => (char)('0' + random.Next(10)),
-                _ => c,
-            });
-        }
-
-        return sb.ToString();
-    }
+    public string Kenteken() => random.FromPattern(random.PickFrom(KentekenPatterns), PlateLetters);
 
     /// <summary>
     /// A Dutch mobile phone number in national format without separators: <c>06</c> followed by 8
     /// digits, e.g. <c>0612345678</c>.
     /// </summary>
     /// <returns>A 10-digit mobile number string starting with <c>06</c>.</returns>
-    public string Mobiel() => $"06{Digits(8)}";
+    public string Mobiel() => $"06{random.Digits(8)}";
 
     /// <summary>
     /// A Dutch landline number in national format without separators: a real area code followed by a
@@ -234,8 +257,8 @@ public class DutchFakerApi(Random random)
     /// <returns>A 10-digit landline number string.</returns>
     public string VastTelefoonnummer()
     {
-        var (area, subscriberLength) = AreaCodes[random.Next(AreaCodes.Length)];
-        return $"{area}{Digits(subscriberLength)}";
+        var (area, subscriberLength) = random.PickFrom(AreaCodes);
+        return $"{area}{random.Digits(subscriberLength)}";
     }
 
     /// <summary>
@@ -243,115 +266,53 @@ public class DutchFakerApi(Random random)
     /// <c>NX1234567</c>. There is no public checksum, so only the shape is realistic.
     /// </summary>
     /// <returns>A 9-character document number string.</returns>
-    public string Paspoortnummer() =>
-        $"{(char)('A' + random.Next(26))}{(char)('A' + random.Next(26))}{Digits(7)}";
+    public string Paspoortnummer() => random.FromPattern("??#######");
 
     /// <summary>A Dutch driving-licence number: 10 digits. There is no public checksum.</summary>
     /// <returns>A 10-digit driving-licence number string.</returns>
-    public string Rijbewijsnummer() => Digits(10);
+    public string Rijbewijsnummer() => random.Digits(10);
 
     /// <summary>The name of one of the twelve Dutch provinces.</summary>
     /// <returns>A province name such as <c>"Utrecht"</c>.</returns>
-    public string Provincie() => Provincies[random.Next(Provincies.Length)];
+    public string Provincie() => random.PickFrom(Provincies);
 
     /// <summary>The name of a Dutch municipality (gemeente).</summary>
     /// <returns>A municipality name such as <c>"Amsterdam"</c>.</returns>
-    public string Gemeente() => Gemeenten[random.Next(Gemeenten.Length)];
+    public string Gemeente() => random.PickFrom(Gemeenten);
 
-    // --- Helpers ---
+    /// <summary>A gender label: one of <c>"man"</c>, <c>"vrouw"</c> or <c>"onbekend"</c>.</summary>
+    /// <returns>A gender label string.</returns>
+    public string Geslacht() => random.PickFrom(Geslachten);
 
-    // A string of exactly 'count' random decimal digits (leading zeros allowed).
-    private string Digits(int count)
-    {
-        var sb = new StringBuilder(count);
-        for (var i = 0; i < count; i++)
-        {
-            sb.Append((char)('0' + random.Next(10)));
-        }
+    // --- Helpers (thin wrappers over the shared Checksums / RandomExtensions in XModelBuilder) ---
 
-        return sb.ToString();
-    }
-
-    // 9 digits passing the BSN/RSIN "elfproef": 9*d1+8*d2+...+2*d8-1*d9 is divisible by 11.
-    private string ElfproefNumberBsn()
+    // 9 digits passing the BSN/RSIN "elfproef" (the 9th digit has weight -1, so it equals the weighted
+    // sum of the first 8 modulo 11). Retries on the rare 10, which has no single-digit representation.
+    private string BsnLikeNumber()
     {
         while (true)
         {
-            Span<int> d = stackalloc int[9];
-            d[0] = random.Next(1, 10); // no leading zero
-            var sum = 9 * d[0];
-            for (var i = 1; i < 8; i++)
+            var body = random.Next(1, 10) + random.Digits(7); // 8 digits, no leading zero
+            var check = Checksums.Mod11WeightedSum(body, ElfproefBodyWeights);
+            if (check != 10)
             {
-                d[i] = random.Next(0, 10);
-                sum += (9 - i) * d[i];
+                return body + check;
             }
-
-            var check = sum % 11; // weight of d9 is -1, so d9 must equal sum mod 11
-            if (check == 10)
-            {
-                continue; // no single-digit check possible; try again
-            }
-
-            d[8] = check;
-            return DigitsToString(d);
         }
     }
 
-    // 9 digits passing the bank "elfproef": 9*d1+8*d2+...+1*d9 is divisible by 11.
-    private string ElfproefNumberBank()
+    // 9 digits passing the bank "elfproef" (the 9th digit has weight +1, so the whole weighted 9..1 sum
+    // is divisible by 11).
+    private string BankAccountNumber()
     {
         while (true)
         {
-            Span<int> d = stackalloc int[9];
-            d[0] = random.Next(1, 10);
-            var sum = 9 * d[0];
-            for (var i = 1; i < 8; i++)
+            var body = random.Next(1, 10) + random.Digits(7);
+            var check = (11 - Checksums.Mod11WeightedSum(body, ElfproefBodyWeights)) % 11;
+            if (check != 10)
             {
-                d[i] = random.Next(0, 10);
-                sum += (9 - i) * d[i];
-            }
-
-            var check = (11 - (sum % 11)) % 11; // weight of d9 is 1
-            if (check == 10)
-            {
-                continue;
-            }
-
-            d[8] = check;
-            return DigitsToString(d);
-        }
-    }
-
-    private static string DigitsToString(ReadOnlySpan<int> digits)
-    {
-        var sb = new StringBuilder(digits.Length);
-        foreach (var digit in digits)
-        {
-            sb.Append((char)('0' + digit));
-        }
-
-        return sb.ToString();
-    }
-
-    // ISO 13616 mod-97 over a string where letters are expanded to A=10..Z=35, computed iteratively so
-    // no big-integer type is needed.
-    private static int Mod97(string value)
-    {
-        var remainder = 0;
-        foreach (var c in value)
-        {
-            if (char.IsDigit(c))
-            {
-                remainder = (remainder * 10 + (c - '0')) % 97;
-            }
-            else
-            {
-                var n = c - 'A' + 10; // two decimal digits
-                remainder = (remainder * 10 + n / 10) % 97;
-                remainder = (remainder * 10 + n % 10) % 97;
+                return body + check;
             }
         }
-
-        return remainder;
     }
 }

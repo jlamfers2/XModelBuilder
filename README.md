@@ -58,7 +58,7 @@ The seeded fakers used in the examples above ship as separate packages (see chap
 ```
 Install-Package XModelBuilder.Fakers.XFaker   # xfake.* tokens + .XFake() extension
 Install-Package XModelBuilder.Fakers.Bogus    # bogus.* tokens + .Bogus() extension
-Install-Package XModelBuilder.Fakers.Dutch    # nl.* tokens + .Nl() extension (Dutch: BSN, IBAN, ...)
+Install-Package XModelBuilder.Fakers.Dutch    # nl.* tokens + .NL() extension (Dutch: BSN, IBAN, ...)
 ```
 
 ## About this document
@@ -1299,7 +1299,7 @@ Separate integration projects (see chapter 18):
 | `XModelBuilder.SpecFlow/SpecFlowTableExtensions.cs` | The same extension methods on `TechTalk.SpecFlow.Table` |
 | `XModelBuilder.Fakers.XFaker/Faker.cs`, `XFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker: `Faker` exposes its deterministic primitives under the `XFake` namespace (methods on `XFakerApi`, tokens `xfake.*`), plus `AddXFaker(seed)` and the convenience accessor `provider.XFaker()` (chapter 21) |
 | `XModelBuilder.Fakers.Bogus/BogusFaker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | `BogusFaker` (exposes a seeded Bogus `Faker`), `AddBogusFaker(seed)` and the convenience accessor `provider.Bogus()` (chapter 21) |
-| `XModelBuilder.Fakers.Dutch/DutchFaker.cs`, `DutchFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker for Netherlands-specific data: `DutchFaker` exposes its generators under the `Nl` namespace (methods on `DutchFakerApi`, tokens `nl.*`), plus `AddDutchFaker(seed)` and the convenience accessor `provider.Nl()` (chapter 21.4) |
+| `XModelBuilder.Fakers.Dutch/DutchFaker.cs`, `DutchFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker for Netherlands-specific data: `DutchFaker` exposes its generators under the `NL` namespace (methods on `DutchFakerApi`, tokens `nl.*`), plus `AddDutchFaker(seed)` and the convenience accessor `provider.NL()` (chapter 21.4) |
 
 ## 17. Full API reference (signatures)
 
@@ -2003,7 +2003,7 @@ that is process-wide and would make parallel runs bleed into each other.
 
 The project `XModelBuilder.Fakers.Dutch` contains `DutchFaker` (namespace
 `XModelBuilder.Fakers.Dutch`): a small, dependency-free faker for **Netherlands-specific** test data.
-It follows the same namespace convention as XFaker, exposing everything under a single member `Nl`, so
+It follows the same namespace convention as XFaker, exposing everything under a single member `NL`, so
 tokens are addressed as `nl.<method>()`. Where an identifier carries an official check, the generated
 value is a **valid** one for that check - BSN/RSIN and old bank account numbers pass the *elfproef*
 (11-test), IBANs pass the ISO 13616 mod-97 check. All values are fictitious and intended only as test
@@ -2033,14 +2033,14 @@ services.AddXModelBuilder()
 | `nl.Paspoortnummer()` / `nl.Rijbewijsnummer()` | document / driving-licence number | shape only |
 | `nl.Provincie()` / `nl.Gemeente()` | a Dutch province / municipality name | - |
 
-From C# you reach the same generators typed, via the `xprovider.Nl()` convenience accessor (extension
+From C# you reach the same generators typed, via the `xprovider.NL()` convenience accessor (extension
 on `IModelBuilderProvider`):
 
 ```csharp
 .With("Bsn",      "nl.Bsn()")        // token, e.g. in a Gherkin table
 .With("Postcode", "nl.Postcode()")
 
-var iban = xprovider.Nl().Iban();     // typed, in plain C#
+var iban = xprovider.NL().Iban();     // typed, in plain C#
 ```
 
 `DutchFaker` registers its OWN seeded `Random` (like the Bogus integration registers its own Bogus

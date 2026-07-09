@@ -23,7 +23,7 @@ public class DutchFakerTests
             .BuildServiceProvider()
             .GetRequiredService<IModelBuilderProvider>();
 
-    private static DutchFakerApi Nl(int seed = 8675309) => CreateProvider(seed).Nl();
+    private static DutchFakerApi NL(int seed = 8675309) => CreateProvider(seed).NL();
 
     // The official BSN/RSIN 11-test: 9*d1+8*d2+...+2*d8-1*d9 must be divisible by 11.
     private static bool PassesBsnElfproef(string number)
@@ -81,7 +81,7 @@ public class DutchFakerTests
     public void Bsn_PassesElfproef_And_HasNineDigits()
     {
         // Arrange
-        var nl = Nl(42);
+        var nl = NL(42);
 
         // Act
         var values = Enumerable.Range(0, 200).Select(_ => nl.Bsn()).ToList();
@@ -94,7 +94,7 @@ public class DutchFakerTests
     public void Rsin_PassesElfproef()
     {
         // Arrange
-        var nl = Nl(7);
+        var nl = NL(7);
 
         // Act
         var values = Enumerable.Range(0, 200).Select(_ => nl.Rsin()).ToList();
@@ -107,7 +107,7 @@ public class DutchFakerTests
     public void BtwNummer_HasLegalEntityShape_WithValidElfproefCore()
     {
         // Arrange
-        var nl = Nl();
+        var nl = NL();
 
         // Act
         var value = nl.BtwNummer();
@@ -121,7 +121,7 @@ public class DutchFakerTests
     public void KvkNummer_IsEightDigits()
     {
         // Arrange
-        var nl = Nl();
+        var nl = NL();
 
         // Act
         var value = nl.KvkNummer();
@@ -134,7 +134,7 @@ public class DutchFakerTests
     public void Vestigingsnummer_IsTwelveDigits()
     {
         // Arrange
-        var nl = Nl();
+        var nl = NL();
 
         // Act
         var value = nl.Vestigingsnummer();
@@ -147,7 +147,7 @@ public class DutchFakerTests
     public void AgbCode_IsEightDigits()
     {
         // Arrange
-        var nl = Nl();
+        var nl = NL();
 
         // Act
         var value = nl.AgbCode();
@@ -160,7 +160,7 @@ public class DutchFakerTests
     public void Iban_IsValid_DutchIban()
     {
         // Arrange
-        var nl = Nl(123);
+        var nl = NL(123);
 
         // Act
         var values = Enumerable.Range(0, 200).Select(_ => nl.Iban()).ToList();
@@ -177,7 +177,7 @@ public class DutchFakerTests
     public void Bankrekeningnummer_PassesBankElfproef()
     {
         // Arrange
-        var nl = Nl(99);
+        var nl = NL(99);
 
         // Act
         var values = Enumerable.Range(0, 200).Select(_ => nl.Bankrekeningnummer()).ToList();
@@ -190,7 +190,7 @@ public class DutchFakerTests
     public void Postcode_HasFourDigitsSpaceTwoLetters_AndAvoidsForbiddenPairs()
     {
         // Arrange
-        var nl = Nl(5);
+        var nl = NL(5);
 
         // Act
         var values = Enumerable.Range(0, 300).Select(_ => nl.Postcode()).ToList();
@@ -207,7 +207,7 @@ public class DutchFakerTests
     public void Kenteken_UsesOnlyAllowedLetters_AndKnownSidecodes()
     {
         // Arrange
-        var nl = Nl(11);
+        var nl = NL(11);
         var allowed = new Regex("^(" + string.Join("|", new[]
         {
             @"[BDFGHJKLMNPRSTVXZ]{3}-\d{2}-[BDFGHJKLMNPRSTVXZ]",
@@ -229,7 +229,7 @@ public class DutchFakerTests
     public void Mobiel_StartsWith06_And_HasTenDigits()
     {
         // Arrange
-        var nl = Nl();
+        var nl = NL();
 
         // Act
         var value = nl.Mobiel();
@@ -242,7 +242,7 @@ public class DutchFakerTests
     public void VastTelefoonnummer_IsTenDigits_StartingWithZeroAreaCode()
     {
         // Arrange
-        var nl = Nl(3);
+        var nl = NL(3);
 
         // Act
         var values = Enumerable.Range(0, 100).Select(_ => nl.VastTelefoonnummer()).ToList();
@@ -255,7 +255,7 @@ public class DutchFakerTests
     public void ProvincieAndGemeente_ReturnNonEmptyNames()
     {
         // Arrange
-        var nl = Nl();
+        var nl = NL();
 
         // Act & Assert
         Assert.False(string.IsNullOrWhiteSpace(nl.Provincie()));
@@ -266,8 +266,8 @@ public class DutchFakerTests
     public void SameSeed_ProducesIdenticalSequences()
     {
         // Arrange
-        var a = Nl(2024);
-        var b = Nl(2024);
+        var a = NL(2024);
+        var b = NL(2024);
 
         // Act
         var seqA = Enumerable.Range(0, 10).Select(_ => a.Bsn()).ToList();
@@ -309,7 +309,7 @@ public class DutchFakerTests
             .GetRequiredService<IModelBuilderProvider>();
 
         // Act
-        var bsn = provider.Nl().Bsn();
+        var bsn = provider.NL().Bsn();
         var id = provider.XFake().NextId();
 
         // Assert

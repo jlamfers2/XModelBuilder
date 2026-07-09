@@ -11,8 +11,8 @@ namespace XModelBuilder.Fakers.Dutch;
 ///
 /// <para>
 /// This is the object exposed by the <see cref="DutchFaker"/> namespace member
-/// <see cref="DutchFaker.Nl"/>, so its methods are addressed as <c>nl.&lt;method&gt;()</c> from tokens
-/// (e.g. <c>"nl.bsn()"</c>, <c>"nl.postcode()"</c>) and via <c>xprovider.Nl()</c> from C#.
+/// <see cref="DutchFaker.NL"/>, so its methods are addressed as <c>nl.&lt;method&gt;()</c> from tokens
+/// (e.g. <c>"nl.bsn()"</c>, <c>"nl.postcode()"</c>) and via <c>xprovider.NL()</c> from C#.
 /// </para>
 ///
 /// <para>

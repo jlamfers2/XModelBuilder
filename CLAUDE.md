@@ -23,6 +23,7 @@ translation of the same spec, kept in sync.)
 | `XModelBuilder` | Core library (net10.0) |
 | `XModelBuilder.Fakers.XFaker` | Dependency-free deterministic faker (`AddXFaker(seed)`) |
 | `XModelBuilder.Fakers.Bogus` | Bogus integration (`AddBogusFaker(seed)`) |
+| `XModelBuilder.Fakers.Dutch` | Netherlands-specific deterministic faker: BSN/RSIN/BTW/KvK/IBAN/postcode/kenteken/… (`AddDutchFaker(seed)`, `nl.*` tokens) |
 | `XModelBuilder.Reqnroll` / `.SpecFlow` | Gherkin-table integrations (`CreateModel(s)<T>`) |
 | `*.UnitTests`, `XModelBuilder.Fakers.UnitTests` | xUnit test projects |
 | `XModelBuilder.Benchmarks` | Benchmarks |

@@ -58,6 +58,7 @@ The seeded fakers used in the examples above ship as separate packages (see chap
 ```
 Install-Package XModelBuilder.Fakers.XFaker   # xfake.* tokens + .XFake() extension
 Install-Package XModelBuilder.Fakers.Bogus    # bogus.* tokens + .Bogus() extension
+Install-Package XModelBuilder.Fakers.Dutch    # nl.* tokens + .Nl() extension (Dutch: BSN, IBAN, ...)
 ```
 
 ## About this document
@@ -397,6 +398,16 @@ This looks up the builder with EXACTLY that (unique) name, case-insensitively an
 order-independently. If such a name does not exist, a `KeyNotFoundException` is thrown -
 there is NO silent fallback to regular data conversion.
 
+**When do you actually use the string name?** In C# code you should NOT: reach for
+`Use<TBuilder>()` (or the concrete builder type) instead. That is compiler-checked,
+refactor-safe and needs no magic string, so the `[ModelBuilder("name")]` string adds no
+value there. The name exists FIRST AND FOREMOST for TEXT-DRIVEN contexts where you have no
+type at hand - above all Gherkin tables (Reqnroll/SpecFlow) and the mini data language,
+where a cell or literal simply reads `complex-address` and, because the target is a
+reference type, resolves to that named builder automatically (see chapter 10, "named
+builder reference"). So: in plain C# stay strongly typed via `Use<TBuilder>()`; use the
+string name only where the value comes from text.
+
 **Validation.** After all registrations, call `ValidateXModelBuilderRegistrations()` (on
 the `IServiceCollection`, or `Validate()` on the standalone provider) to enforce the
 rules all at once: every builder has a `[ModelBuilder]` name, names are unique per model
@@ -714,7 +725,10 @@ following steps, in this order:
     is interpreted as the NAME of a `[ModelBuilder(name)]`-tagged builder for that target
     type (see chapter 5): return `provider.For(targetType, input).Build()`. If no builder
     with that name is registered for that type, a `KeyNotFoundException` is thrown - there
-    is NO silent fallback to the steps below.
+    is NO silent fallback to the steps below. This named-builder-by-string mechanism is
+    exactly what makes named builders useful in TEXT-DRIVEN contexts (Gherkin tables, the
+    mini data language) where no type is available; in plain C# you would instead use the
+    typed `Use<TBuilder>()` (see chapter 5).
 13. If the target type is an enum: parse by name (case-insensitively) or by numeric value.
     (This step - and the two below - are in practice only reached for value types, string
     or object, or for escaped input on a reference type, because step 12 otherwise already
@@ -1285,6 +1299,7 @@ Separate integration projects (see chapter 18):
 | `XModelBuilder.SpecFlow/SpecFlowTableExtensions.cs` | The same extension methods on `TechTalk.SpecFlow.Table` |
 | `XModelBuilder.Fakers.XFaker/Faker.cs`, `XFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker: `Faker` exposes its deterministic primitives under the `XFake` namespace (methods on `XFakerApi`, tokens `xfake.*`), plus `AddXFaker(seed)` and the convenience accessor `provider.XFaker()` (chapter 21) |
 | `XModelBuilder.Fakers.Bogus/BogusFaker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | `BogusFaker` (exposes a seeded Bogus `Faker`), `AddBogusFaker(seed)` and the convenience accessor `provider.Bogus()` (chapter 21) |
+| `XModelBuilder.Fakers.Dutch/DutchFaker.cs`, `DutchFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker for Netherlands-specific data: `DutchFaker` exposes its generators under the `Nl` namespace (methods on `DutchFakerApi`, tokens `nl.*`), plus `AddDutchFaker(seed)` and the convenience accessor `provider.Nl()` (chapter 21.4) |
 
 ## 17. Full API reference (signatures)
 
@@ -1984,7 +1999,54 @@ Bogus uses its OWN randomizer (separate from `System.Random`). `AddBogusFaker` s
 via `new Faker { Random = new Randomizer(seed) }` - NOT the global static `Randomizer.Seed`, because
 that is process-wide and would make parallel runs bleed into each other.
 
-### 21.4 Using them together
+### 21.4 XModelBuilder.Fakers.Dutch - DutchFaker (Netherlands-specific)
+
+The project `XModelBuilder.Fakers.Dutch` contains `DutchFaker` (namespace
+`XModelBuilder.Fakers.Dutch`): a small, dependency-free faker for **Netherlands-specific** test data.
+It follows the same namespace convention as XFaker, exposing everything under a single member `Nl`, so
+tokens are addressed as `nl.<method>()`. Where an identifier carries an official check, the generated
+value is a **valid** one for that check - BSN/RSIN and old bank account numbers pass the *elfproef*
+(11-test), IBANs pass the ISO 13616 mod-97 check. All values are fictitious and intended only as test
+data.
+
+```csharp
+using XModelBuilder.Fakers.Dutch;
+
+services.AddXModelBuilder()
+    .AddDutchFaker(seed: 12345);   // registers DutchFaker + its own seeded Random (follows the isolation, chapter 21.1)
+```
+
+| Token | Returns | Valid check? |
+|---|---|---|
+| `nl.Bsn()` | Burgerservicenummer, 9 digits | ✅ elfproef |
+| `nl.Rsin()` | RSIN, 9 digits | ✅ elfproef |
+| `nl.BtwNummer()` | VAT number `NL{9}B{2}` (legal-entity form) | ✅ elfproef on the 9-digit core |
+| `nl.KvkNummer()` | KvK number, 8 digits | no public checksum |
+| `nl.Vestigingsnummer()` | KvK establishment number, 12 digits | no public checksum |
+| `nl.AgbCode()` | AGB healthcare-provider code, 8 digits | no public checksum |
+| `nl.Iban()` | Dutch IBAN `NL{2}{BANK}{10}` | ✅ mod-97 |
+| `nl.Bankrekeningnummer()` | classic (pre-IBAN) 9-digit account | ✅ bank elfproef |
+| `nl.Postcode()` | postcode `1234 AB` (avoids SS/SD/SA) | structural |
+| `nl.Kenteken()` | licence plate in a common sidecode | structural (no vowels/C/Q/W/Y) |
+| `nl.Mobiel()` | mobile number `06` + 8 digits | structural |
+| `nl.VastTelefoonnummer()` | landline (real area code + subscriber, 10 digits) | structural |
+| `nl.Paspoortnummer()` / `nl.Rijbewijsnummer()` | document / driving-licence number | shape only |
+| `nl.Provincie()` / `nl.Gemeente()` | a Dutch province / municipality name | - |
+
+From C# you reach the same generators typed, via the `xprovider.Nl()` convenience accessor (extension
+on `IModelBuilderProvider`):
+
+```csharp
+.With("Bsn",      "nl.Bsn()")        // token, e.g. in a Gherkin table
+.With("Postcode", "nl.Postcode()")
+
+var iban = xprovider.Nl().Iban();     // typed, in plain C#
+```
+
+`DutchFaker` registers its OWN seeded `Random` (like the Bogus integration registers its own Bogus
+`Faker`), so its seed stays independent from XFaker's and the two can coexist with different seeds.
+
+### 21.5 Using them together
 
 Both fakers can coexist in the same provider; thanks to the `bogus.` path their tokens do not
 collide:
@@ -1994,6 +2056,7 @@ var xprovider = new ServiceCollection()
     .AddXModelBuilder()
     .AddXFaker(seed: 2024)
     .AddBogusFaker(seed: 2024)
+    .AddDutchFaker(seed: 2024)
     .BuildServiceProvider()
     .GetRequiredService<IModelBuilderProvider>();
 
@@ -2001,10 +2064,11 @@ var person = xprovider.For<Person>()
     .With("Id", "xfake.NewGuid(customer-acme)")      // Faker (stable)
     .With("Name", "bogus.name.firstname()")     // BogusFaker, deep-path
     .With("City", "bogus.address.city()")       // BogusFaker, deep-path
+    .With("Bsn", "nl.Bsn()")                    // DutchFaker, valid 11-test
     .Build();
 ```
 
-### 21.5 Points of attention
+### 21.6 Points of attention
 
 - **Banish other ambient non-determinism from your own fakers.** Not only `Random.Shared`, but also
   `Guid.NewGuid()`, `DateTime.Now`/`UtcNow`. Route everything through an injected, seeded `Random`

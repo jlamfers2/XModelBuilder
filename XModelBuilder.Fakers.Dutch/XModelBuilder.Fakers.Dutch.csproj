@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <Title>XModelBuilder Dutch faker</Title>
+    <Description>Dependency-free deterministic faker for Netherlands-specific test data (BSN, RSIN, BTW, KvK, IBAN, postcode, kenteken, phone numbers, and more) for XModelBuilder. Register with AddDutchFaker(seed); identifiers with an official check (elfproef, IBAN mod-97) are generated valid.</Description>
+    <PackageTags>testdata;test-data;test-data-builder;object-mother;builder-pattern;testing;unit-testing;integration-testing;deterministic;fluent;fixture;faker;fake-data;dutch;netherlands;bsn;iban;kvk;xmodelbuilder;dotnet</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XModelBuilder\XModelBuilder.csproj" />
+  </ItemGroup>
+
+</Project>

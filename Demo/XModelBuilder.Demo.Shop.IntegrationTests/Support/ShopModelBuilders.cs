@@ -35,7 +35,6 @@ public static class ShopModelBuilders
             .AddModelBuilder<ProductBuilder>()
             .AddModelBuilder<AddressRequestBuilder>()
             .AddModelBuilder<PlaceOrderRequestBuilder>()
-            .UseAsDefaultModelBuilder<CustomerBuilder>()
             .ValidateXModelBuilderRegistrations();
 
         return services;

@@ -57,25 +57,17 @@ public sealed class DefaultModelBuilderProvider : IModelBuilderProvider, IFakerI
         ((IFakerInvocationSource)GetProvider()).InvokeFaker(name, args, targetType, culture);
 
     /// <summary>
-    /// Registers <typeparamref name="TModelBuilder"/> as the open-generic default (fallback) builder,
-    /// used for model types that have no dedicated builder.
+    /// Registers the given open-generic builder type as the optional CROSS-CUTTING layer, applied to
+    /// EVERY build (on top of the fixed <see cref="DefaultModelBuilder{TModel}"/> base, under any
+    /// specific builder) to provide cross-cutting defaults for every model type. The standalone
+    /// equivalent of <see cref="ServiceCollectionExtensions.AddCrossCuttingModelBuilder"/>. Registering
+    /// again replaces the layer. See README chapter 5.
     /// </summary>
-    /// <typeparam name="TModelBuilder">The builder type to register as the default.</typeparam>
+    /// <param name="modelBuilderType">The open-generic builder type to register as the cross-cutting layer (e.g. <c>typeof(EntityDefaults&lt;&gt;)</c>).</param>
     /// <returns>This provider, to allow call chaining.</returns>
-    public DefaultModelBuilderProvider SetDefaultModelBuilder<TModelBuilder>() where TModelBuilder : IModelBuilder
+    public DefaultModelBuilderProvider AddCrossCuttingModelBuilder(Type modelBuilderType)
     {
-        return SetDefaultModelBuilder(typeof(TModelBuilder));
-    }
-
-    /// <summary>
-    /// Registers the given builder type as the open-generic default (fallback) builder, used for
-    /// model types that have no dedicated builder.
-    /// </summary>
-    /// <param name="defaultModelBuilderType">The builder type to register as the default.</param>
-    /// <returns>This provider, to allow call chaining.</returns>
-    public DefaultModelBuilderProvider SetDefaultModelBuilder(Type defaultModelBuilderType)
-    {
-        Mutate(s => s.AddDefaultModelBuilder(defaultModelBuilderType));
+        Mutate(s => s.AddCrossCuttingModelBuilder(modelBuilderType));
         return this;
     }
 
@@ -97,25 +89,6 @@ public sealed class DefaultModelBuilderProvider : IModelBuilderProvider, IFakerI
     public DefaultModelBuilderProvider AddModelBuilder(Type modelBuilderType)
     {
         Mutate(s => s.AddModelBuilder(modelBuilderType));
-        return this;
-    }
-
-    /// <summary>Marks a builder as the default for its model type (order-independent), the standalone
-    /// equivalent of <see cref="ServiceCollectionExtensions.UseAsDefaultModelBuilder{TModelBuilder}"/>.</summary>
-    public DefaultModelBuilderProvider UseAsDefaultModelBuilder<TModelBuilder>() where TModelBuilder : IModelBuilder
-    {
-        return UseAsDefaultModelBuilder(typeof(TModelBuilder));
-    }
-
-    /// <summary>
-    /// Marks the given builder as the default for its model type (order-independent), the standalone
-    /// equivalent of <see cref="ServiceCollectionExtensions.UseAsDefaultModelBuilder(IServiceCollection, Type)"/>.
-    /// </summary>
-    /// <param name="modelBuilderType">The builder type to mark as the default for its model type.</param>
-    /// <returns>This provider, to allow call chaining.</returns>
-    public DefaultModelBuilderProvider UseAsDefaultModelBuilder(Type modelBuilderType)
-    {
-        Mutate(s => s.UseAsDefaultModelBuilder(modelBuilderType));
         return this;
     }
 

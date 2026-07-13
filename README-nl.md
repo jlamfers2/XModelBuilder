@@ -80,7 +80,7 @@ XModelBuilder.SpecFlow (zie hoofdstuk 18).
 2.  [Installatie en registratie (Dependency Injection)](#2-installatie-en-registratie-dependency-injection)
 3.  [Snel starten](#3-snel-starten)
 4.  [Kernconcepten en publieke API](#4-kernconcepten-en-publieke-api)
-5.  [Meerdere builders per modeltype: ModelBuilderAttribute en resolutievolgorde](#5-meerdere-builders-per-modeltype-modelbuilderattribute-en-resolutievolgorde)
+5.  [Builder-resolutie: de basis, de cross-cutting laag en genaamde builders](#5-builder-resolutie-de-basis-de-cross-cutting-laag-en-genaamde-builders)
 6.  [De "With"-methoden in detail](#6-de-with-methoden-in-detail)
 7.  [Deep-paths: geneste members en collecties via string-paden](#7-deep-paths-geneste-members-en-collecties-via-string-paden)
 8.  [Constructor-argumenten: hoe XModelBuilder ze herkent](#8-constructor-argumenten-hoe-xmodelbuilder-ze-herkent)
@@ -139,10 +139,10 @@ Belangrijkste eigenschappen:
   `Build()`-aanroepen, gedeelde basisconfiguratie) of op de provider (elk een
   verse builder, optioneel per-index of via een specifiek genaamde builder)
   - zie hoofdstuk 12.
-- Er kunnen MEERDERE builders voor hetzelfde modeltype geregistreerd worden;
-  elke builder krijgt een verplichte, unieke `[ModelBuilder("naam")]` waarmee je
-  hem expliciet opvraagt, en de default wijs je order-onafhankelijk aan met
-  `UseAsDefaultModelBuilder<TBuilder>()` (hoofdstuk 5).
+- Een vaste no-op BASIS plus een optionele CROSS-CUTTING laag draaien op elke build (`For<T>()`);
+  specifieke builders, elk met een verplichte, unieke `[ModelBuilder("naam")]`, komen erbovenop
+  wanneer je erom vraagt per type (`Use<TBuilder>()`) of per naam (`For<T>("naam")`)
+  - zie hoofdstuk 5.
 - Werkt zowel met `Microsoft.Extensions.DependencyInjection` als volledig
   standalone (zonder DI-container) via een statische provider.
 - Apart te installeren integraties voor Reqnroll en SpecFlow bouwen modellen
@@ -174,20 +174,24 @@ services.AddXModelBuilder(options =>
    als er geen configuratie-delegate is meegegeven). Standaardwaarden:
    `DefaultCulture = CultureInfo.InvariantCulture`,
    `DateTimeCulture = CultureInfo.InvariantCulture`.
-2. Registreert een "keyed" fallback-implementatie voor het open generic
-   type `IModelBuilder<>` onder de key `"default"`, geïmplementeerd door
-   `XModelBuilder.Default.DefaultModelBuilder<T>` (een builder die niets
-   bijzonders doet in `SetDefaults()`). Hierdoor kan voor ELK modeltype T
-   waarvoor je niets specifieks hebt geregistreerd, toch een werkende
-   builder worden opgelost.
+2. Registreert de vaste BASIS: een "keyed" (`"default"`) open-generic
+   implementatie van `IModelBuilder<>`, de sealed
+   `XModelBuilder.Default.DefaultModelBuilder<T>` (die niets doet in
+   `SetDefaults()`). Het is waar elke build vanaf start (`For<T>()`,
+   `ForEmpty<T>()`), zodat elk modeltype T naar een werkende builder resolvet.
+   De basis is niet vervangbaar; om elk model gedeelde, cross-cutting defaults te
+   geven, registreer je een APARTE cross-cutting laag met
+   `AddCrossCuttingModelBuilder(typeof(...))` (hoofdstuk 5).
 3. Registreert `IModelBuilderProvider`
    (`XModelBuilder.DependencyInjection.ModelBuilderProvider`) - standaard als
    Singleton, of als Scoped wanneer je `AddXModelBuilder(isolation:
    XModelBuilderIsolation.PerScope)` meegeeft (zie hoofdstuk 21.1 voor wanneer je
    dat wilt - bv. één scope per BDD-scenario).
 
-Wil je voor een specifiek modeltype een eigen builder gebruiken (bijvoorbeeld
-om altijd bepaalde defaults te zetten), registreer die dan extra:
+Wil je voor een modeltype een SPECIFIEKE builder (eigen standaard-defaults of
+custom build-gedrag), registreer die dan extra en roep hem expliciet aan
+(`Use<PersonBuilder>()` in C#, of `For<Person>("naam")` in tekst-gedreven
+contexten):
 
 ```csharp
 services.AddModelBuilder<PersonBuilder>();
@@ -196,10 +200,8 @@ services.AddModelBuilder(typeof(PersonBuilder));
 ```
 
 Je kunt dit MEERDERE KEREN doen voor hetzelfde modeltype: alle geregistreerde
-builders blijven beschikbaar (zowel via `For<TModel>()` als via expliciete
-naam-resolutie). Zie hoofdstuk 5 voor hoe XModelBuilder bepaalt welke builder
-"de" builder is wanneer er meer dan één geregistreerd staat voor hetzelfde
-modeltype.
+builders blijven beschikbaar per naam of per type. `For<TModel>()` (zonder naam)
+draait altijd de basis + cross-cutting laag, nooit een specifieke builder - zie hoofdstuk 5.
 
 Wil je alle `IModelBuilder`-implementaties automatisch laten registreren
 (handig voor grotere apps met veel builders verspreid over assemblies):
@@ -211,9 +213,9 @@ services.AddModelBuildersFromAssemblies();                              // hele 
 
 Dit scant op alle niet-abstracte, niet-generieke types die `IModelBuilder`
 implementeren, en registreert elk via `AddModelBuilder(type)`. Omdat de resolutie
-order-onafhankelijk is (hoofdstuk 5), maakt de scan-volgorde niet uit; vergeet bij
-≥2 builders per type niet de default te kiezen met `UseAsDefaultModelBuilder` en
-het geheel te controleren met `ValidateXModelBuilderRegistrations()`.
+order-onafhankelijk is (hoofdstuk 5), maakt de scan-volgorde niet uit; elke builder
+heeft nog steeds een unieke `[ModelBuilder("naam")]` nodig, die je controleert met
+`ValidateXModelBuilderRegistrations()`.
 
 Voor fakers is er BEWUST geen scanning - registreer die expliciet met
 `AddFaker<T>()` (hoofdstuk 11).
@@ -319,10 +321,11 @@ de provider die op basis van een Type werkt) toch met een builder werken.
 
 **`IModelBuilderProvider`**
 Lost builders op. Methoden: `For<TModel>()`, `For(Type)`, `For<TModel>(name)`,
-`For(Type,name)`, `Use<TModelBuilder>()`, `Use(Type)`. `For` zoekt een builder
-OP BASIS VAN HET MODELTYPE (met of zonder expliciete naam, zie hoofdstuk
-5); `Use` geeft je een specifieke, compile-time bekende builder-klasse
-rechtstreeks terug, ongeacht wat er voor het modeltype geregistreerd is.
+`For(Type,name)`, `Use<TModelBuilder>()`, `Use(Type)`, `ForEmpty<TModel>()`.
+`For<T>()` geeft de BASIS + CROSS-CUTTING laag voor het modeltype; `For<T>("naam")` en
+`Use<TBuilder>()` leggen een specifieke, compile-time bekende builder erbovenop
+(zie hoofdstuk 5); `ForEmpty<T>()` slaat de cross-cutting laag over voor een
+schoon object.
 
 **`ModelBuilder<TBuilder, TModel>`**
 Abstracte basisklasse die `IModelBuilder<TModel>` en `IModelBuilder`
@@ -331,11 +334,10 @@ conversie). Eigen builders erven hiervan over en implementeren alleen
 de abstracte methode `SetDefaults()`.
 
 **`ModelBuilderAttribute`**
-Geeft een concrete builderklasse een VERPLICHTE, per-modeltype UNIEKE naam
-(`[ModelBuilder("naam")]`), waarmee hij expliciet opvraagbaar is (zie hoofdstuk
-5). De naam bepaalt NIET welke builder de default is - dat configureer je
-order-onafhankelijk met `UseAsDefaultModelBuilder<TBuilder>()` en controleer je
-met `ValidateXModelBuilderRegistrations()`.
+Geeft een concrete (specifieke) builderklasse een VERPLICHTE, per-modeltype
+UNIEKE naam (`[ModelBuilder("naam")]`), waarmee hij expliciet opgevraagd wordt -
+per naam via `For<T>("naam")` of, in C#, per type via `Use<TBuilder>()` (zie
+hoofdstuk 5). Namen worden gecontroleerd met `ValidateXModelBuilderRegistrations()`.
 
 **`ModelBuilderOptions`**
 - `DefaultCulture` (`CultureInfo`, default: `InvariantCulture`) - gebruikt voor
@@ -343,20 +345,89 @@ met `ValidateXModelBuilderRegistrations()`.
 - `DateTimeCulture` (`CultureInfo`, default: `InvariantCulture`) - gebruikt
   specifiek voor DateTime/DateTimeOffset-parsing.
 
-## 5. Meerdere builders per modeltype: ModelBuilderAttribute en resolutievolgorde
+## 5. Builder-resolutie: de basis, de cross-cutting laag en genaamde builders
 
-Normaal gesproken registreer je hoogstens één builder per modeltype. Soms wil
-je echter meerdere "varianten" van een builder voor hetzelfde modeltype
-beschikbaar hebben (bijvoorbeeld een eenvoudige en een uitgebreide variant),
-en toch een eenduidige "default" aanwijzen. De resolutie is BEWUST
-order-onafhankelijk: ze hangt nooit af van registratievolgorde, ook niet
-wanneer builders via assembly-scanning uit meerdere assemblies binnenkomen.
+Elk model wordt gebouwd via maximaal DRIE lagen, in ÉÉN pijplijn:
 
-**`[ModelBuilder("naam")]`**
-Een attribuut op een concrete builderklasse (een klasse die van
-`ModelBuilder<TBuilder,TModel>` afleidt). De naam is VERPLICHT en moet UNIEK
-zijn per modeltype. De naam bepaalt NIET de default (er is geen speciale naam
-`"default"` meer).
+- **De basis** - de vaste, sealed `DefaultModelBuilder<>`. Hij doet niets en is NIET vervangbaar. Het is
+  waar `For<T>()` en `ForEmpty<T>()` vanaf starten, en waar een modeltype zonder eigen builder op
+  uitkomt.
+- **De cross-cutting laag** (optioneel) - één open-generic builder die je éénmalig registreert, toegepast
+  op ELKE build om elk model gedeelde defaults te geven - bijv. een deterministische Guid `Id`. Hij wordt
+  geënt met de LAAGSTE precedentie, dus alles wat een specifieke builder of de aanroeper zet, overschrijft
+  hem.
+- **Een specifieke builder** (optioneel) - een dedicated builder voor één modeltype, toegepast BOVENOP
+  zodra je er per type of naam om vraagt.
+
+Dit maakt resolutie volledig transparant: `For<T>()` is ALTIJD de basis plus de cross-cutting laag, nooit
+een onverwachte custom builder; een specifieke builder draait alleen als je hem benoemt. Er is geen
+"default onder meerdere builders" meer te configureren - dat concept, en `UseAsDefaultModelBuilder`,
+zijn verdwenen.
+
+### De drie ingangen
+
+| Aanroep | Wat draait |
+|---|---|
+| `For<T>()` | de basis + de cross-cutting laag |
+| `Use<TBuilder>()` / `For<T>("naam")` | de basis + de cross-cutting laag, dan die specifieke builder, dan jouw `With`-calls |
+| `ForEmpty<T>()` | alleen de kale basis - de cross-cutting laag wordt overgeslagen |
+
+`For<T>()` zoekt niets type-specifieks op: het bouwt de basis en ent de cross-cutting laag voor `T`, en
+werkt óók als er helemaal geen specifieke builder voor `T` geregistreerd is. `Use<TBuilder>()` instantieert
+een specifieke, compile-time bekende builderklasse; `For<T>("naam")` / `For(typeof(T), "naam")` resolvet de
+specifieke builder met `[ModelBuilder("naam")]` voor `T` - de getypeerde en de tekst-gedreven route
+naar hetzelfde. `ForEmpty<T>()` is de escape hatch voor een schoon object dat de cross-cutting laag
+overslaat.
+
+### De cross-cutting laag draait altijd; specifieke builders komen erbovenop
+
+`Use<TBuilder>()` bouwt NIET twee keer. Alle lagen leveren aan in ÉÉN build-pijplijn: eerst de
+`SetDefaults()` van de cross-cutting laag, dan die van de specifieke builder, dan jouw `With`/`WithValues`.
+Het object wordt ÉÉN keer geconstrueerd uit de samengevoegde set constructor-argumenten, waarna de
+resterende deep-path-settings worden toegepast. Latere lagen overschrijven eerdere op hetzelfde doel
+(laatste wint), precies zoals overlappende `With`-calls. Omdat ALLE bijdragen aan constructor-
+argumenten VÓÓR de constructie worden verzameld, kan een specifieke builder nog steeds constructor-
+argumenten leveren (immutable / ctor-only modellen blijven werken).
+
+Het mentale model is één zin: *de cross-cutting laag draait altijd; om een specifieke builder vragen laat
+die er bovenop draaien; `ForEmpty` slaat de cross-cutting laag over.*
+
+### De cross-cutting laag configureren
+
+De basis `DefaultModelBuilder<>` staat vast en doet niets. Om elk model gedeelde defaults te geven,
+registreer je je EIGEN open-generic als de cross-cutting laag - een APARTE registratie die de basis
+ongemoeid laat:
+
+```csharp
+services.AddCrossCuttingModelBuilder(typeof(EntityDefaults<>));   // DI
+// standalone: DefaultModelBuilderProvider.Current.AddCrossCuttingModelBuilder(typeof(EntityDefaults<>));
+```
+
+```csharp
+public sealed class EntityDefaults<TModel>(
+        IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<EntityDefaults<TModel>, TModel>(options, xprovider)   // sluit TBuilder = zichzelf
+    where TModel : class
+{
+    protected override void SetDefaults()
+    {
+        if (HasWritableGuidId(typeof(TModel)))   // guard: alleen types die echt een Guid Id hebben
+            With("Id", "xfake.NewGuid()");
+    }
+}
+```
+
+Omdat de cross-cutting laag op elke build draait (behalve `ForEmpty`), kan zo'n default nooit vergeten
+worden - er is geen base class om van af te leiden en geen `base.SetDefaults()`-aanroep om weg te laten.
+En omdat het een APARTE laag is, blijft de sealed `DefaultModelBuilder<>` een voorspelbare no-op: je hoeft
+je nooit af te vragen of "de default builder" stiekem iets doet.
+
+### `[ModelBuilder("naam")]` - specifieke, genaamde builders
+
+Een specifieke builder leidt af van `ModelBuilder<TBuilder,TModel>` en draagt een VERPLICHTE, UNIEKE
+`[ModelBuilder("naam")]`. De naam is hoe je hem aanspreekt in TEKST-GEDREVEN contexten (Gherkin-
+tabellen, de mini-datataal, `For<T>("naam")`); in gewone C# gebruik je de compiler-gecontroleerde
+`Use<TBuilder>()` en raak je de string nooit aan.
 
 ```csharp
 [ModelBuilder("complex-adres")]
@@ -365,77 +436,58 @@ public sealed class ComplexAddressBuilder(
         IModelBuilderProvider xprovider)
     : ModelBuilder<ComplexAddressBuilder, Address>(options, xprovider)
 {
-    protected override void SetDefaults()
-    {
-        With(x => x.Street, "Hoofdstraat");
-    }
+    protected override void SetDefaults() => With(x => x.Street, "Hoofdstraat");
 }
 ```
 
-Registreer zo veel builders voor `Address` als je wilt, en wijs - bij meer dan
-één - expliciet de default aan met `UseAsDefaultModelBuilder<TBuilder>()`
-(non-generic variant: `UseAsDefaultModelBuilder(typeof(...))`). Het modeltype
-wordt uit de builder afgeleid, dus geen magische string:
+Registreer zo veel specifieke builders per modeltype als je wilt - het zijn simpelweg losse, per
+naam/type aanspreekbare specifieke builders; er is geen "default onder hen" te configureren, omdat
+`For<T>()` nooit een specifieke builder kiest:
 
 ```csharp
 services
-    .AddModelBuilder<ComplexAddressBuilder>()       // [ModelBuilder("complex-adres")]
-    .AddModelBuilder<SimpleAddressBuilder>()         // [ModelBuilder("simpel")]
-    .UseAsDefaultModelBuilder<SimpleAddressBuilder>(); // 'simpel' is de default voor Address
+    .AddModelBuilder<ComplexAddressBuilder>()   // [ModelBuilder("complex-adres")]
+    .AddModelBuilder<SimpleAddressBuilder>();     // [ModelBuilder("simpel")]
+
+xprovider.For<Address>();                   // basis + cross-cutting laag (NIET een custom Address-builder)
+xprovider.For<Address>("complex-adres");    // basis + cross-cutting + ComplexAddressBuilder
+xprovider.Use<ComplexAddressBuilder>();     // hetzelfde, getypeerd
 ```
 
-Resolutie van `xprovider.For<TModel>()` / `xprovider.For(Type)`:
+`For<T>("naam")` / `For(typeof(T), "naam")` zoekt de builder met EXACT die (unieke) naam,
+hoofdletter-ongevoelig en order-onafhankelijk. Bestaat zo'n naam niet, dan een `KeyNotFoundException` -
+er is GEEN stille fallback naar gewone data-conversie.
 
-1. **0 builders** voor dat modeltype → de generieke open-generic fallback
-   (`DefaultModelBuilder<>`, of een via `SetDefaultModelBuilder` aangepaste
-   fallback - zie hoofdstuk 14).
-2. **1 builder** → die ene (een geconfigureerde default is niet nodig).
-3. **≥2 builders** → de met `UseAsDefaultModelBuilder` geconfigureerde default.
-   Is er geen default geconfigureerd, dan wordt een `InvalidOperationException`
-   gegooid (geen stille keuze, geen "laatste wint").
+**Wanneer gebruik je de string-naam eigenlijk?** In C# juist NIET: gebruik daar `Use<TBuilder>()` (of
+het concrete buildertype), dat compiler-gecontroleerd en refactor-veilig is. De
+`[ModelBuilder("naam")]`-string bestaat IN DE EERSTE PLAATS voor TEKST-GEDREVEN contexten waar je geen
+type bij de hand hebt - vooral Gherkin-tabellen (Reqnroll/SpecFlow) en de mini-datataal, waar een cel
+of literal simpelweg `complex-adres` bevat en, omdat het doeltype een referentietype is, automatisch
+naar die genaamde builder resolvet (zie hoofdstuk 10, "named builder reference").
 
-Wil je EXPLICIET een specifiek genaamde builder gebruiken, ongeacht de default:
+### Impliciete `For(type)`-aanroepen
+
+Verschillende mechanismen bouwen een geneste waarde via `For(type)` ZONDER naam: geneste auto-
+vivificatie (hoofdstuk 7), het `default()`-token en `WithDefault<T>` (hoofdstukken 6 / 10). Die draaien
+dus allemaal de BASIS + CROSS-CUTTING laag voor dat type - de voorspelbare uitkomst. Wil je een genest
+lid via een SPECIFIEKE builder bouwen, zet het dan expliciet (`Use<TBuilder>().Build()` of `WithBuilder`,
+hoofdstuk 6).
+
+### Validatie
+
+Roep na alle registraties `ValidateXModelBuilderRegistrations()` aan (op de `IServiceCollection`, of
+`Validate()` op de standalone provider) om af te dwingen: elke specifieke builder draagt een
+`[ModelBuilder(naam)]`, en namen zijn UNIEK per modeltype. Alle overtredingen worden samen in één
+`InvalidOperationException` gerapporteerd.
 
 ```csharp
-xprovider.For<Address>("complex-adres")        // of
-xprovider.For(typeof(Address), "complex-adres") // of
-xprovider.Use<ComplexAddressBuilder>()
+services.ValidateXModelBuilderRegistrations(); // gooit bij een ontbrekende of dubbele naam
 ```
 
-Dit zoekt de builder met EXACT die (unieke) naam, hoofdletter-ongevoelig en
-volledig order-onafhankelijk. Bestaat zo'n naam niet, dan een
-`KeyNotFoundException` - er is GEEN stille fallback naar gewone data-conversie.
-
-**Wanneer gebruik je de string-naam eigenlijk?** In C#-code juist NIET: gebruik
-daar `Use<TBuilder>()` (of het concrete buildertype). Dat is compiler-
-gecontroleerd, refactor-veilig en heeft geen magische string nodig, dus de
-`[ModelBuilder("naam")]`-string voegt daar niets toe. De naam bestaat IN DE EERSTE
-PLAATS voor TEKST-GEDREVEN contexten waar je geen type bij de hand hebt - vooral
-Gherkin-tabellen (Reqnroll/SpecFlow) en de mini-datataal, waar een cel of literal
-simpelweg `complex-adres` bevat en, omdat het doeltype een referentietype is,
-automatisch naar die genaamde builder resolvet (zie hoofdstuk 10, "named builder
-reference"). Dus: in gewone C# blijf je strong-typed via `Use<TBuilder>()`; de
-string-naam gebruik je alleen waar de waarde uit tekst komt.
-
-**Validatie.** Roep na alle registraties `ValidateXModelBuilderRegistrations()`
-aan (op de `IServiceCollection`, of `Validate()` op de standalone provider) om
-de regels in één keer af te dwingen: elke builder heeft een `[ModelBuilder]`-
-naam, namen zijn uniek per modeltype, en elk modeltype met ≥2 builders heeft een
-geconfigureerde, daadwerkelijk geregistreerde default. Alle overtredingen worden
-samen in één `InvalidOperationException` gerapporteerd.
-
-```csharp
-services.ValidateXModelBuilderRegistrations(); // gooit bij dubbele naam / ontbrekende default
-```
-
-Deze resolutie werkt zowel via de DI-provider
+Deze resolutie werkt identiek via de DI-provider
 (`XModelBuilder.DependencyInjection.ModelBuilderProvider`, gebaseerd op
-Microsoft.Extensions.DependencyInjection's `GetServices(...)`) als via de
-statische `DefaultModelBuilderProvider`.
-
-Dezelfde naam kan ook ALS STRINGWAARDE gebruikt worden bij `With(string,string)`
-om een geneste, complexe property te bouwen via een specifiek genaamde
-builder - zie hoofdstuk 10 ("named builder reference").
+Microsoft.Extensions.DependencyInjection's `GetServices(...)`) en via de statische
+`DefaultModelBuilderProvider` (hoofdstuk 14).
 
 ## 6. De "With"-methoden in detail
 
@@ -500,20 +552,24 @@ aantal lambda-parameters.
 
 **h) `WithDefault<TValue>(Expression<Func<TModel,TValue>> getter) where TValue : class?`**
 Lambda-equivalent van het `"default()"`-token (hoofdstuk 10) voor een complex
-member-type: zet de property op een verse instantie, gebouwd via de DEFAULT-builder
-voor `TValue` (dus die type's `SetDefaults()` draait), functioneel gelijk aan
-`With(getter, () => xprovider.For<TValue>().Build())`. Het verhoudt zich tot
-`default()` precies zoals vorm (f) `WithBuilder` zich verhoudt tot een
+member-type: zet de property op een verse instantie, gebouwd via de BASIS +
+CROSS-CUTTING laag voor `TValue` (dus de `SetDefaults()` van die type's cross-cutting
+laag draait - hoofdstuk 5), functioneel gelijk aan
+`With(getter, () => xprovider.For<TValue>().Build())`. Het verhoudt
+zich tot `default()` precies zoals vorm (f) `WithBuilder` zich verhoudt tot een
 named-builder-referentie: een refactor-veilig, ontdekbaar getypeerd alternatief voor
 `With("Member", "default()")`. Net als de andere waarde-producerende vormen wordt het
 lazy geëvalueerd bij `Build()` en doorgesluisd naar de constructor als de member een
 constructor-parameter is. Een `string`-member levert `null` op, net als het
 `"default()"`-token. De constraint is `class?` (niet `class`) zodat een nullable-
-geannoteerde member zoals `Address?` geen waarschuwing geeft op de aanroepplek.
+geannoteerde member zoals `Address?` geen waarschuwing geeft op de aanroepplek. (Om de
+member via een SPECIFIEKE named builder te vullen in plaats van de basis + cross-cutting
+laag, gebruik je vorm (f) `WithBuilder`.)
 
-Door `WithDefault` in elke builder's `SetDefaults()` samen te stellen, vult een
-objectgraaf zichzelf, één EXPLICIET niveau per builder - elke builder is alleen
-verantwoordelijk voor z'n eigen directe members:
+Doordat `WithDefault` een geneste member auto-vivificeert via de basis + cross-cutting laag
+van dat type, kan een objectgraaf zichzelf vullen, één EXPLICIET niveau tegelijk - elke
+builder zet alleen z'n eigen directe members, en de niveaus daaronder komen via hun eigen
+lagen binnen:
 
 ```csharp
 [ModelBuilder("person")]
@@ -524,11 +580,12 @@ public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelB
 }
 ```
 
-Een `Person` bouwen levert nu een gevulde `Address` op (plus wat `AddressBuilder` op
-zijn beurt vult), zonder dat `PersonBuilder` iets weet van de niveaus onder `Address`.
-Dit is een bewust, expliciet alternatief voor één alwetende "bouw de hele graaf diep"-
-methode: er is geen framework-brede recursie, dus valt er ook niets tegen cycli te
-bewaken - een back-reference is simpelweg een `WithDefault` die je niet schrijft.
+Een `Person` bouwen (`Use<PersonBuilder>()`) levert nu een gevulde `Address` op - gevuld
+door de cross-cutting laag voor `Address`, en wat die op zijn beurt vult - zonder dat
+`PersonBuilder` iets weet van de niveaus onder `Address`. Dit is een bewust, expliciet
+alternatief voor één alwetende "bouw de hele graaf diep"-methode: er is geen framework-
+brede recursie, dus valt er ook niets tegen cycli te bewaken - een back-reference is
+simpelweg een `WithDefault` die je niet schrijft.
 
 **`Reset()`**
 Wist alle eerder opgegeven `With`-instellingen en constructor-argumenten,
@@ -733,9 +790,8 @@ toegewezen, doorloopt de volgende stappen, in deze volgorde:
      - `string` -> null
      - overige value-types -> `default(T)` (via `Activator`)
      - overige reference-types (klassen) -> `provider.For(doeltype).Build()`:
-       bouwt via de builder die op dat moment als "default" geldt voor
-       dat type (zie hoofdstuk 5) - dus inclusief eventuele
-       `SetDefaults()`-logica.
+       bouwt via de basis + cross-cutting laag voor dat type (zie hoofdstuk 5) -
+       dus inclusief zijn `SetDefaults()`-logica.
 4. (alleen als niet ge-escaped, en geen match in stap 3) **FAKER-AANROEP**: komt
    de input overeen met het patroon `"naam(args)"` (een identifier, direct
    gevolgd door haakjes, eindigend op `')'`), dan wordt dit opgevat als een
@@ -915,8 +971,9 @@ Resolutieregels (token-dispatch):
 - Methode-matching is HOOFDLETTER-ONGEVOELIG, net als de rest van de library.
 - Is er voor naam "X" een methode geregistreerd op MEERDERE `IFaker`-klassen,
   dan "wint" de LAATST GEREGISTREERDE klasse die een methode met die naam
-  heeft VOLLEDIG (consistent met de `[ModelBuilder]`-resolutievolgorde uit
-  hoofdstuk 5) - er worden geen overloads van verschillende klassen gemengd.
+  heeft VOLLEDIG - er worden geen overloads van verschillende klassen gemengd.
+  (Anders dan model-builders, waarvan de resolutie order-onafhankelijk is -
+  hoofdstuk 5 - is faker-tokendispatch bewust laatste-registratie-wint.)
 - Binnen die klasse wordt een overload als "passend" beschouwd wanneer het
   aantal opgegeven argumenten tussen het aantal VERPLICHTE (niet-optionele) en
   het TOTALE aantal data-parameters ligt (zie hieronder voor de
@@ -1153,14 +1210,16 @@ hoofdstuk 18 (`xprovider.Extend(instance, x => x.Adres, table)`).
 
 ## 13. Eigen ModelBuilders schrijven
 
-Voor de meeste modeltypen heb je geen eigen builder nodig: de generieke
-`DefaultModelBuilder<T>` (geregistreerd als "default"-fallback) werkt direct.
-Schrijf een eigen builder wanneer je standaarddefaults wilt vastleggen die
-elke keer automatisch worden toegepast, of wanneer je het bouwgedrag wilt
-aanpassen.
+Voor de meeste modeltypen heb je geen eigen builder nodig: de vaste basis
+(de niets-doende `DefaultModelBuilder<T>`) werkt direct, en gedeelde
+cross-cutting defaults horen in een aparte cross-cutting laag (hoofdstuk 5,
+`AddCrossCuttingModelBuilder`).
+Schrijf een SPECIFIEKE builder wanneer één modeltype eigen standaard-defaults of
+custom build-gedrag nodig heeft; je roept hem dan expliciet aan met
+`Use<TBuilder>()` (of, in tekst-gedreven contexten, `For<T>("naam")`).
 
 ```csharp
-[ModelBuilder]   // optioneel; zonder attribuut heeft de builder geen naam
+[ModelBuilder("person")]   // verplicht, uniek per modeltype (hoofdstuk 5)
 public sealed class PersonBuilder(
         IOptions<ModelBuilderOptions> options,
         IModelBuilderProvider xprovider)
@@ -1174,11 +1233,13 @@ public sealed class PersonBuilder(
 }
 ```
 
-Registreer hem (zodat hij i.p.v. de generieke default wordt gebruikt voor
-`Person`):
+Registreer hem, en roep hem daarna expliciet aan (per type in C#, of per naam in
+tekst-gedreven contexten):
 
 ```csharp
 services.AddModelBuilder<PersonBuilder>();
+
+var person = xprovider.Use<PersonBuilder>().Build();   // basis + cross-cutting laag + PersonBuilder
 ```
 
 `SetDefaults()` wordt aangeroepen vanuit de constructor (via `Reset()`), dus
@@ -1236,8 +1297,8 @@ fakers (hoofdstuk 11) ook hier gewoon werkt: er IS nu altijd een echte
 
 ```csharp
 DefaultModelBuilderProvider.Current
-    .SetDefaultModelBuilder<MyOpenGenericBuilder>()   // wijzig de open-generic fallback
-                                                       // (i.p.v. DefaultModelBuilder<>)
+    .AddCrossCuttingModelBuilder(typeof(MyDefaults<>)) // registreer de cross-cutting laag
+                                                       // (een APARTE laag; de basis blijft sealed)
     .AddModelBuilder<PersonBuilder>()                  // registreer een specifieke builder
                                                        // voor Person (mag meerdere keren
                                                        // per modeltype)
@@ -1260,13 +1321,10 @@ Create.Model<T>()        // == DefaultModelBuilderProvider.Current.For<T>().Buil
 Create.Models<T>(...)    // == DefaultModelBuilderProvider.Current.BuildMany<T>(...) (hoofdstuk 12)
 ```
 
-`Use` verschilt van `For`: `For<T>()` zoekt een builder op basis van het
-MODELTYPE T (volgens de order-onafhankelijke regel uit hoofdstuk 5: één builder,
-anders de met `UseAsDefaultModelBuilder` geconfigureerde default, anders de
-generieke fallback);
-`Use<TBuilder>()` instantieert een SPECIFIEKE, compile-time bekende
-builder-klasse rechtstreeks, ongeacht of er voor het bijbehorende modeltype
-iets geregistreerd staat. Dit is handig als je voor één modeltype meerdere,
+`Use` verschilt van `For`: `For<T>()` draait de BASIS + CROSS-CUTTING laag voor modeltype T
+(hoofdstuk 5) - er hoeft geen specifieke builder voor T geregistreerd te zijn;
+`Use<TBuilder>()` legt een SPECIFIEKE, compile-time bekende builder-klasse
+daar bovenop. Dit is handig als je voor een modeltype één of meer
 verschillend-genaamde builders hebt (bijvoorbeeld om verschillende
 "scenario's" te modelleren) en je in code precies weet welke je wilt.
 `Use.Faker<TFaker>()` is hetzelfde idee, maar dan voor fakers (hoofdstuk 11).
@@ -1364,8 +1422,7 @@ constructor-argumenten, en roept `SetDefaults()` opnieuw aan.
 | `Default/DefaultModelBuilderProvider.cs` | `DefaultModelBuilderProvider` | dunne, lazy-ServiceProvider-gebaseerde statische singleton-provider (geen eigen resolutielogica, zie hoofdstuk 14) |
 | `Default/For.cs`, `Default/Use.cs`, `Default/Create.cs` | `For`, `Use`, `Create` | statische gemaksfacades |
 | `DependencyInjection/ModelBuilderProvider.cs` | `ModelBuilderProvider` | DI-gebaseerde provider; ENIGE plek met echte resolutielogica (ook gebruikt door de standalone provider hierboven) |
-| `DependencyInjection/ServiceCollectionExtensions.cs` | `AddXModelBuilder`, `AddModelBuilder`, `AddModelBuildersFromAssembly`, `AddModelBuildersFromAssemblies`, `AddDefaultModelBuilder`, `UseAsDefaultModelBuilder`, `ValidateXModelBuilderRegistrations`, `AddFaker` | registratie-extensies |
-| `DependencyInjection/ModelBuilderDefaults.cs` | `ModelBuilderDefaults` (internal) | order-onafhankelijke registry (modeltype → default-builder), gevuld door `UseAsDefaultModelBuilder`, geraadpleegd door de provider (hoofdstuk 5) |
+| `DependencyInjection/ServiceCollectionExtensions.cs` | `AddXModelBuilder`, `AddModelBuilder`, `AddModelBuildersFromAssembly`, `AddModelBuildersFromAssemblies`, `AddCrossCuttingModelBuilder`, `ValidateXModelBuilderRegistrations`, `AddFaker` | registratie-extensies |
 | `DependencyInjection/XModelBuilderIsolation.cs` | `XModelBuilderIsolation` (enum), `XModelBuilderIsolationState` (internal) | isolatiekeuze (Shared/PerScope) + order-onafhankelijke "laatste verzoent"-bedrading van provider/fakers/seeders (hoofdstuk 21.1) |
 | `DependencyInjection/AssemblyScanner.cs` | `AssemblyScanner` (internal) | scant het AppDomain (bin-map laden + cachen, cache-invalidatie bij `AssemblyLoad`) voor `AddModelBuildersFromAssemblies`; degradeert netjes bij niet-laadbare afhankelijkheden (`ReflectionTypeLoadException`/`IsVisible`) |
 
@@ -1399,7 +1456,7 @@ Losse integratieprojecten (zie hoofdstuk 18):
 |---|---|
 | `XModelBuilder.Reqnroll/ReqnrollTableExtensions.cs` | Extension methods `CreateModel<T>`/`CreateModels<T>` op `Reqnroll.Table` |
 | `XModelBuilder.SpecFlow/SpecFlowTableExtensions.cs` | Dezelfde extension methods op `TechTalk.SpecFlow.Table` |
-| `XModelBuilder.Fakers.XFaker/Faker.cs`, `XFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-vrije faker: `Faker` stelt zijn deterministische primitieven beschikbaar onder de `XFake`-namespace (methodes op `XFakerApi`, tokens `xfake.*`), plus `AddXFaker(seed)` en de gemaks-accessor `provider.XFaker()` (hoofdstuk 21) |
+| `XModelBuilder.Fakers.XFaker/Faker.cs`, `XFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-vrije faker: `Faker` stelt zijn deterministische primitieven beschikbaar onder de `XFake`-namespace (methodes op `XFakerApi`, tokens `xfake.*`), plus `AddXFaker(seed)` en de gemaks-accessor `provider.XFake()` (hoofdstuk 21) |
 | `XModelBuilder.Fakers.Bogus/BogusFaker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | `BogusFaker` (expose't een geseede Bogus `Faker`), `AddBogusFaker(seed)` en de gemaks-accessor `provider.Bogus()` (hoofdstuk 21) |
 | `XModelBuilder.Fakers.Dutch/DutchFaker.cs`, `DutchFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-vrije faker voor Nederlandse data: `DutchFaker` expose't zijn generators onder de `NL`-namespace (methoden op `DutchFakerApi`, tokens `nl.*`), plus `AddDutchFaker(seed)` en de gemaks-accessor `provider.NL()` (hoofdstuk 21.4) |
 
@@ -1446,7 +1503,7 @@ public interface IModelBuilderProvider
     IModelBuilder<TModel> For<TModel>(string name) where TModel : class;
     TModelBuilder Use<TModelBuilder>() where TModelBuilder : IModelBuilder;
     IModelBuilder Use(Type modelBuilderType);
-    // Verse, ingebouwde DefaultModelBuilder<TModel> - langs elke (custom/fallback) registratie heen.
+    // Verse, ingebouwde DefaultModelBuilder<TModel> - langs de cross-cutting laag heen (schoon object).
     IModelBuilder<TModel> ForEmpty<TModel>() where TModel : class;
     TFaker Faker<TFaker>() where TFaker : IFaker;
     // GEEN InvokeFaker hier - dat is internal-only plumbing, zie
@@ -1519,10 +1576,7 @@ public static class ServiceCollectionExtensions
         where TModelBuilder : IModelBuilder;
     IServiceCollection AddModelBuildersFromAssembly(this IServiceCollection services, Assembly assembly);
     IServiceCollection AddModelBuildersFromAssemblies(this IServiceCollection services);   // hele AppDomain
-    IServiceCollection AddDefaultModelBuilder(this IServiceCollection services, Type modelBuilderType);
-    IServiceCollection UseAsDefaultModelBuilder(this IServiceCollection services, Type modelBuilderType);
-    IServiceCollection UseAsDefaultModelBuilder<TModelBuilder>(this IServiceCollection services)
-        where TModelBuilder : IModelBuilder;
+    IServiceCollection AddCrossCuttingModelBuilder(this IServiceCollection services, Type modelBuilderType); // de optionele cross-cutting laag (open generic)
     IServiceCollection ValidateXModelBuilderRegistrations(this IServiceCollection services);
     IServiceCollection AddFaker(this IServiceCollection services, Type fakerType,
         ServiceLifetime lifetime = ServiceLifetime.Singleton);
@@ -1533,12 +1587,9 @@ public static class ServiceCollectionExtensions
 public sealed class DefaultModelBuilderProvider : IModelBuilderProvider
 {
     public static DefaultModelBuilderProvider Current { get; }
-    public DefaultModelBuilderProvider SetDefaultModelBuilder<TModelBuilder>() where TModelBuilder : IModelBuilder;
-    public DefaultModelBuilderProvider SetDefaultModelBuilder(Type defaultModelBuilderType);
+    public DefaultModelBuilderProvider AddCrossCuttingModelBuilder(Type modelBuilderType); // de optionele cross-cutting laag (open generic)
     public DefaultModelBuilderProvider AddModelBuilder<TModelBuilder>() where TModelBuilder : IModelBuilder;
     public DefaultModelBuilderProvider AddModelBuilder(Type modelBuilderType);
-    public DefaultModelBuilderProvider UseAsDefaultModelBuilder<TModelBuilder>() where TModelBuilder : IModelBuilder;
-    public DefaultModelBuilderProvider UseAsDefaultModelBuilder(Type modelBuilderType);
     public DefaultModelBuilderProvider Validate();   // == ValidateXModelBuilderRegistrations
     public DefaultModelBuilderProvider AddFaker(IFaker faker);
     public DefaultModelBuilderProvider AddFaker<TFaker>(ServiceLifetime lifetime = ServiceLifetime.Singleton) where TFaker : IFaker;
@@ -1762,17 +1813,15 @@ membernamen, en elke datarij beschrijft ÉÉN instance:
   verticale tabel kan per definitie maar één instance beschrijven).
 - Horizontale tabel: retourneert één instance per datarij, in
   tabelvolgorde, elk via een eigen, verse builder
-  (`provider.For<TModel>()` - dus volgens de resolutie van hoofdstuk 5: de
-  enige builder, anders de met `UseAsDefaultModelBuilder` geconfigureerde
-  default, anders de generieke fallback).
+  (`provider.For<TModel>()` - dus volgens hoofdstuk 5 de basis + cross-cutting laag voor `TModel`).
 
 **`CreateModels<TModel>(provider, table, modelBuilderName)`:**
 
 Zelfde als hierboven, maar elke rij gebruikt EXPLICIET de builder die
 geregistreerd staat onder `[ModelBuilder(modelBuilderName)]` voor
-`TModel` (via `provider.For<TModel>(modelBuilderName)`, hoofdstuk 5) -
-ongeacht welke builder normaal als "default" zou gelden. Bestaat die
-naam niet, dan gooit AL DE EERSTE rij een `KeyNotFoundException`.
+`TModel` (via `provider.For<TModel>(modelBuilderName)`, hoofdstuk 5),
+bovenop de basis + cross-cutting laag. Bestaat die naam niet, dan gooit AL DE EERSTE
+rij een `KeyNotFoundException`.
 
 Voorbeeld (Reqnroll-stap):
 
@@ -1901,7 +1950,7 @@ heeft in essentie deze bouwstenen nodig, in deze afhankelijkheidsvolgorde:
    - uit een lambda-expressie de "ondiepe" propertynaam haalt (voor
      constructor-argumentdetectie),
    - een builder-klasse koppelt aan zijn (optionele) naam-attribuut
-     (voor "is dit de default-builder?" / "heeft deze builder naam X?").
+     (voor "heeft deze builder naam X?").
 
 4. Een "maak me altijd een instantie"-routine (`Instantiator`) die eerst een
    parameterloze constructor zoekt (ook niet-publieke), anders de
@@ -1909,13 +1958,13 @@ heeft in essentie deze bouwstenen nodig, in deze afhankelijkheidsvolgorde:
    en bij falen teruggrijpt op een manier om een object te alloceren
    zonder constructor te draaien (in .NET: `RuntimeHelpers.GetUninitializedObject`).
 
-5. Een naam-attribuut (zoals `ModelBuilderAttribute`) waarmee een builder-
-   klasse een VERPLICHTE, per-modeltype UNIEKE naam krijgt, plus een
-   order-onafhankelijke "wijs de default aan"-stap (zoals
-   `UseAsDefaultModelBuilder`) en een validatie die uniciteit en het bestaan
-   van een default (bij ≥2 builders) afdwingt, gebruikt door (10) om bij
-   meerdere geregistreerde builders voor hetzelfde modeltype te bepalen welke
-   "de" builder is, en om expliciete naam-gebaseerde lookups te ondersteunen.
+5. Een naam-attribuut (zoals `ModelBuilderAttribute`) waarmee een specifieke
+   builder-klasse een VERPLICHTE, per-modeltype UNIEKE naam krijgt, plus een
+   validatie die die uniciteit afdwingt, gebruikt door (10) voor expliciete
+   naam-gebaseerde lookups (`For<T>("naam")`). Er is GEEN "wijs de default onder
+   meerdere aan"-stap: `For<T>()` is altijd de basis + cross-cutting laag (zie (10));
+   specifieke builders komen er alleen bovenop wanneer ze per naam of per type
+   aangesproken worden.
 
 6. Een waarde-converteerder (`ValueConverter`) die de algoritme-stappen uit
    hoofdstuk 10 implementeert: drie tokens (`null()`/`new()`/`default()`) plus
@@ -1979,12 +2028,13 @@ heeft in essentie deze bouwstenen nodig, in deze afhankelijkheidsvolgorde:
      geëvalueerd, literale waarden blijven gedeeld.
 
 10. Een providerlaag die, gegeven een modeltype (en optioneel een naam),
-    een bijbehorende builder teruggeeft, met ondersteuning voor MEERDERE
-    geregistreerde builders per modeltype, ORDER-ONAFHANKELIJK: bij precies
-    één builder die ene; bij meerdere de via (5) geconfigureerde default (en
-    een duidelijke fout als die ontbreekt - geen "laatste wint"); en bij geen
-    enkele een generieke fallback-builder (een open generic
-    `"DefaultBuilder<T>"` zonder eigen defaults). Dezelfde laag
+    een bijbehorende builder teruggeeft, ORDER-ONAFHANKELIJK. Zonder naam
+    geeft ze de vaste, sealed BASIS voor dat type terug (een `"DefaultBuilder<T>"`
+    zonder eigen defaults), waarin de OPTIONELE cross-cutting laag (een apart
+    geregistreerde open-generic builder) op elke build wordt geënt. Met een naam (of een
+    compile-time bekend buildertype) legt ze die specifieke builder BOVENOP
+    de basis + cross-cutting laag in één build-pijplijn, en worden MEERDERE specifieke
+    builders per modeltype ondersteund. Dezelfde laag
     beheert ook de lijst geregistreerde fakers voor (7), exposeert die
     faker-aanroep-mogelijkheid via een INTERN-only interface (NIET op het
     publieke provider-contract zelf, om dat strak te houden - de
@@ -2074,7 +2124,7 @@ gooit als de provider-lifetime niet bij de isolatie past (bv. door
 `AddXModelBuilder` tweemaal met verschillende isolatie aan te roepen).
 
 > Alléén provider + fakers + geseede RNG's volgen de isolatie. `ModelBuilderOptions`,
-> de `ModelBuilderDefaults`-registry en de builder-registraties blijven
+> de basis- en cross-cutting-laag-registratie en de builder-registraties blijven
 > container-breed (de `TimeProvider` blijft Singleton).
 
 ### 21.2 XModelBuilder.Fakers.XFaker - Faker (dependency-vrij)
@@ -2098,12 +2148,12 @@ services.AddXModelBuilder()
     .AddXFaker(seed: 12345);   // registreert Faker + geseede Random (volgt de isolatie, hoofdstuk 21.1)
 ```
 
-Getypeerd opvragen kan via `xprovider.Faker<Faker>()`, of korter via de
-gemaks-accessor `xprovider.XFaker()` (extension op `IModelBuilderProvider`); in
-beide gevallen leven de methodes onder `.XFake`:
+Getypeerd opvragen kan via `xprovider.Faker<Faker>()` (waarvan de methodes onder de
+`.XFake`-member leven), of korter via de gemaks-accessor `xprovider.XFake()` (extension op
+`IModelBuilderProvider`), die die `XFakerApi` direct teruggeeft:
 
 ```csharp
-var id = xprovider.XFaker().XFake.NewGuid("customer-acme");
+var id = xprovider.XFake().NewGuid("customer-acme");
 ```
 
 | Token / methode | Soort | Toelichting |

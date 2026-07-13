@@ -67,33 +67,36 @@ public class DefaultModelBuilderProviderTests
     }
 
     [Fact]
-    public void For_Resolves_ConfiguredDefault_RegardlessOfRegistrationOrder()
+    public void For_ReturnsBaseLayer_NotASpecificBuilder_RegardlessOfRegistrationOrder()
     {
         // Arrange
         DefaultModelBuilderProvider.Current
             .AddModelBuilder<GadgetBuilderBeta>()
             .AddModelBuilder<GadgetBuilderGamma>()
-            .AddModelBuilder<GadgetBuilderAlpha>()
-            .UseAsDefaultModelBuilder<GadgetBuilderAlpha>();
+            .AddModelBuilder<GadgetBuilderAlpha>();
 
         // Act
         var gadget = DefaultModelBuilderProvider.Current.For<Gadget>().Build();
 
         // Assert
-        Assert.Equal("Alpha", gadget.Name);
+        // For<T>() is always the (do-nothing) base here, never a registered specific builder.
+        Assert.Null(gadget.Name);
     }
 
     [Fact]
-    public void For_MultipleBuilders_NoDefaultConfigured_Throws()
+    public void For_MultipleBuilders_ReturnsBaseLayer_DoesNotThrow()
     {
         // Arrange
         DefaultModelBuilderProvider.Current
             .AddModelBuilder<FirstGadgetBuilder>()
             .AddModelBuilder<SecondGadgetBuilder>();
 
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(
-            () => DefaultModelBuilderProvider.Current.For<MultiBuilderGadget>());
+        // Act
+        var gadget = DefaultModelBuilderProvider.Current.For<MultiBuilderGadget>().Build();
+
+        // Assert
+        // Several specific builders no longer make For<T>() ambiguous.
+        Assert.Null(gadget.Name);
     }
 
     [Fact]

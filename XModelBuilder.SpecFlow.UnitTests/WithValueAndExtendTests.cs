@@ -20,19 +20,26 @@ public class WithValueAndExtendTests
         public Adres Adres { get; set; } = new();
     }
 
-    // Custom builder met een default (Land = "NL"). Als Extend deze builder zou gebruiken, zou de default
-    // opnieuw worden toegepast - dat willen we juist NIET.
-    [ModelBuilder("default")]
-    public sealed class KlantBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<KlantBuilder, Klant>(options, xprovider)
+    // Cross-cutting laag met een default (Land = "NL"), toegepast op elke Build. Als Extend de cross-cutting laag
+    // zou gebruiken, zou de default opnieuw worden toegepast - dat willen we juist NIET (Extend gebruikt
+    // een kale builder).
+    public sealed class KlantDefaults<TModel>(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<KlantDefaults<TModel>, TModel>(options, xprovider)
+        where TModel : class
     {
-        protected override void SetDefaults() => With(k => k.Land, "NL");
+        protected override void SetDefaults()
+        {
+            if (typeof(TModel) == typeof(Klant))
+            {
+                With("Land", "NL");
+            }
+        }
     }
 
     private static IModelBuilderProvider CreateProvider() =>
         new ServiceCollection()
             .AddXModelBuilder()
-            .AddModelBuilder<KlantBuilder>()
+            .AddCrossCuttingModelBuilder(typeof(KlantDefaults<>))
             .BuildServiceProvider()
             .GetRequiredService<IModelBuilderProvider>();
 

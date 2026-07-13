@@ -38,7 +38,6 @@ public class SpecFlowTableExtensionsTests
             .AddXModelBuilder()
             .AddModelBuilder<PersonBuilder>()
             .AddModelBuilder<DutchPersonBuilder>()
-            .UseAsDefaultModelBuilder<PersonBuilder>()
             .BuildServiceProvider()
             .GetRequiredService<IModelBuilderProvider>();
 

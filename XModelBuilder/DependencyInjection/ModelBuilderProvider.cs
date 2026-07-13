@@ -8,49 +8,42 @@ namespace XModelBuilder.DependencyInjection
 {
     /// <summary>
     /// The DI-backed <see cref="IModelBuilderProvider"/>: the single place with real resolution logic.
-    /// Resolves builders and fakers from the wrapped <see cref="IServiceProvider"/>, enforcing that a
-    /// default is explicitly configured (order-independently) when multiple builders exist for a model
-    /// type, and supports faker-token invocation via <see cref="IFakerInvocationSource"/>.
+    /// Resolves builders and fakers from the wrapped <see cref="IServiceProvider"/>. Every build starts
+    /// from the fixed, sealed <see cref="DefaultModelBuilder{TModel}"/> BASE (keyed <see cref="DefaultBaseKey"/>);
+    /// the optional CROSS-CUTTING layer (keyed <see cref="CrossCuttingLayerKey"/>, registered via
+    /// <c>AddCrossCuttingModelBuilder</c>) is seeded into every build; named/typed builders layer on top.
+    /// Also implements <see cref="ICrossCuttingLayerProvider"/> (so a builder can seed the cross-cutting
+    /// layer on <c>Reset()</c>) and <see cref="IFakerInvocationSource"/> (faker-token invocation).
     /// </summary>
     /// <param name="services">The service provider the builders, fakers and options are resolved from.</param>
-    public class ModelBuilderProvider(IServiceProvider services) : IModelBuilderProvider, IFakerInvocationSource
+    public class ModelBuilderProvider(IServiceProvider services) : IModelBuilderProvider, IFakerInvocationSource, ICrossCuttingLayerProvider
     {
+        /// <summary>The keyed-service key of the fixed, sealed <see cref="DefaultModelBuilder{TModel}"/> base layer.</summary>
+        internal const string DefaultBaseKey = "default";
+
+        /// <summary>The keyed-service key of the optional cross-cutting layer registered via <c>AddCrossCuttingModelBuilder</c>.</summary>
+        internal const string CrossCuttingLayerKey = "crosscutting";
+
         private readonly IServiceProvider _services = services;
+
+        // The model types whose cross-cutting layer is currently being constructed on this thread. While
+        // a type is in this set, GetCrossCuttingLayer returns null for it, so the cross-cutting layer
+        // never re-applies itself (recursion guard), and ForEmpty can construct a pristine base instance
+        // with the layer suppressed. Thread-static because a shared/singleton provider may be used from
+        // several threads, while each construction is synchronous.
+        [ThreadStatic]
+        private static HashSet<Type>? _suppressedCrossCuttingTypes;
 
         /// <inheritdoc/>
         public IModelBuilder For(Type modelType)
         {
+            // For<T>() (no name) is ALWAYS the sealed base + the cross-cutting layer - never a
+            // type-specific builder. Constructing the base runs its Reset, which seeds the cross-cutting
+            // layer automatically.
             var resolveType = typeof(IModelBuilder<>).MakeGenericType(modelType);
-            var candidates = _services.GetServices(resolveType).Cast<IModelBuilder>().ToList();
-
-            if (candidates.Count == 0)
-            {
-                var fallback = _services.GetKeyedService(resolveType, "default")
-                    ?? throw new KeyNotFoundException($"Could not resolve {resolveType.GetFriendlyName(true)}");
-                return (IModelBuilder)fallback;
-            }
-
-            if (candidates.Count == 1)
-            {
-                return candidates[0];
-            }
-
-            // Multiple builders for this model type: the default must be configured explicitly and
-            // order-independently via UseAsDefaultModelBuilder<TBuilder>() - there is no implicit
-            // "last registered wins". Resolve by name (For<T>(name)) to pick a specific one.
-            var defaultBuilderType = (_services.GetService(typeof(ModelBuilderDefaults)) as ModelBuilderDefaults)
-                ?.GetBuilderType(modelType);
-
-            if (defaultBuilderType is null)
-            {
-                throw new InvalidOperationException(
-                    $"Multiple model builders are registered for {modelType.GetFriendlyName(true)} but no default is configured. " +
-                    $"Call UseAsDefaultModelBuilder<TBuilder>() to pick one, or resolve a specific builder by name via For(..., name).");
-            }
-
-            return candidates.FirstOrDefault(c => c.GetType() == defaultBuilderType)
-                ?? throw new InvalidOperationException(
-                    $"The configured default model builder '{defaultBuilderType.GetFriendlyName()}' for {modelType.GetFriendlyName(true)} is not among the registered builders.");
+            return _services.GetKeyedService(resolveType, DefaultBaseKey) as IModelBuilder
+                ?? throw new KeyNotFoundException(
+                    $"No base model builder is registered for {resolveType.GetFriendlyName(true)}. Was AddXModelBuilder() called?");
         }
 
         /// <inheritdoc/>
@@ -63,10 +56,11 @@ namespace XModelBuilder.DependencyInjection
         public IModelBuilder For(Type modelType, string name)
         {
             var resolveType = typeof(IModelBuilder<>).MakeGenericType(modelType);
-            var candidates = _services.GetServices(resolveType).Cast<IModelBuilder>().ToList();
+            var candidates = _services.GetServices(resolveType).Cast<IModelBuilder>();
 
             // Names are unique per model type (enforced by ValidateXModelBuilderRegistrations), so
-            // this is order-independent.
+            // this is order-independent. Each candidate is constructed with the cross-cutting layer
+            // already seeded in (via its Reset), so the returned builder is "cross-cutting + this specific".
             foreach (var candidate in candidates)
             {
                 if (candidate.GetType().HasModelBuilderName(name))
@@ -103,10 +97,22 @@ namespace XModelBuilder.DependencyInjection
         /// <inheritdoc/>
         public IModelBuilder<TModel> ForEmpty<TModel>() where TModel : class
         {
-            // Construct the built-in DefaultModelBuilder<TModel> directly - NOT the keyed "default"
-            // registration, which could have been replaced by an open-generic that sets fields.
+            // Construct the sealed DefaultModelBuilder<TModel> base directly, with the cross-cutting layer
+            // for this type suppressed, so the instance is truly pristine (no cross-cutting defaults).
             var options = _services.GetRequiredService<IOptions<ModelBuilderOptions>>();
-            return new DefaultModelBuilder<TModel>(options, this);
+            var set = _suppressedCrossCuttingTypes ??= [];
+            var added = set.Add(typeof(TModel));
+            try
+            {
+                return new DefaultModelBuilder<TModel>(options, this);
+            }
+            finally
+            {
+                if (added)
+                {
+                    set.Remove(typeof(TModel));
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -114,6 +120,38 @@ namespace XModelBuilder.DependencyInjection
         {
             return _services.GetService<TFaker>()
                 ?? throw new KeyNotFoundException($"No faker of type '{typeof(TFaker).GetFriendlyName(true)}' is registered.");
+        }
+
+        IModelBuilder? ICrossCuttingLayerProvider.GetCrossCuttingLayer(Type modelType)
+        {
+            // While the cross-cutting layer for this type is being constructed (or ForEmpty suppressed it),
+            // it must not be applied.
+            if (_suppressedCrossCuttingTypes?.Contains(modelType) == true)
+            {
+                return null;
+            }
+            return ResolveCrossCuttingLayer(modelType);
+        }
+
+        // Resolves the keyed cross-cutting layer for the model type, guarding against re-entrancy for the
+        // same type (the cross-cutting builder's own Reset asks for the layer again during construction).
+        // Returns null when no cross-cutting layer is registered.
+        private IModelBuilder? ResolveCrossCuttingLayer(Type modelType)
+        {
+            var resolveType = typeof(IModelBuilder<>).MakeGenericType(modelType);
+            var set = _suppressedCrossCuttingTypes ??= [];
+            if (!set.Add(modelType))
+            {
+                return null;
+            }
+            try
+            {
+                return _services.GetKeyedService(resolveType, CrossCuttingLayerKey) as IModelBuilder;
+            }
+            finally
+            {
+                set.Remove(modelType);
+            }
         }
 
         object? IFakerInvocationSource.InvokeFaker(string name, object?[] args, Type targetType, CultureInfo culture)

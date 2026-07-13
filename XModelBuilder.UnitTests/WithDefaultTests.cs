@@ -25,23 +25,39 @@ public class WithDefaultTests
         public Address Address { get; } = address;
     }
 
-    // Three levels to show a graph filling itself one explicit level per builder.
+    // Three levels to show a graph filling itself one explicit level per default-layer entry.
     public class Level1 { public Level2? Child { get; set; } }
     public class Level2 { public Level3? Child { get; set; } }
     public class Level3 { public string? Value { get; set; } }
 
-    // ---- Builders -------------------------------------------------------------------------------
+    // ---- Cross-cutting layer --------------------------------------------------------------------------
 
-    [ModelBuilder("defaultAddress")]
-    public sealed class AddressBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<AddressBuilder, Address>(options, xprovider)
+    // WithDefault / the "default()" token build a nested value through For(type) with NO name, which
+    // resolves to the DEFAULT LAYER for that type (chapter 5). So the nested defaults live here.
+    public sealed class GraphDefaults<TModel>(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<GraphDefaults<TModel>, TModel>(options, xprovider)
+        where TModel : class
     {
         protected override void SetDefaults()
         {
-            With(a => a.City, "DefaultCity");
-            With(a => a.Street, "DefaultStreet");
+            var t = typeof(TModel);
+            if (t == typeof(Address))
+            {
+                With("City", "DefaultCity");
+                With("Street", "DefaultStreet");
+            }
+            else if (t == typeof(Level1) || t == typeof(Level2))
+            {
+                With("Child", "default()");
+            }
+            else if (t == typeof(Level3))
+            {
+                With("Value", "deep");
+            }
         }
     }
+
+    // ---- Builders -------------------------------------------------------------------------------
 
     [ModelBuilder("person")]
     public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
@@ -50,32 +66,13 @@ public class WithDefaultTests
         protected override void SetDefaults() => WithDefault(p => p.Address);
     }
 
-    [ModelBuilder("level1")]
-    public sealed class Level1Builder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<Level1Builder, Level1>(options, xprovider)
-    {
-        protected override void SetDefaults() => WithDefault(x => x.Child);
-    }
-
-    [ModelBuilder("level2")]
-    public sealed class Level2Builder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<Level2Builder, Level2>(options, xprovider)
-    {
-        protected override void SetDefaults() => WithDefault(x => x.Child);
-    }
-
-    [ModelBuilder("level3")]
-    public sealed class Level3Builder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<Level3Builder, Level3>(options, xprovider)
-    {
-        protected override void SetDefaults() => With(x => x.Value, "deep");
-    }
-
     // ---- Helpers --------------------------------------------------------------------------------
 
     private static IModelBuilderProvider Provider(params Type[] builderTypes)
     {
-        var services = new ServiceCollection().AddXModelBuilder();
+        var services = new ServiceCollection()
+            .AddXModelBuilder()
+            .AddCrossCuttingModelBuilder(typeof(GraphDefaults<>));
         foreach (var builderType in builderTypes)
         {
             services.AddModelBuilder(builderType);
@@ -86,13 +83,13 @@ public class WithDefaultTests
     // ---- Tests ----------------------------------------------------------------------------------
 
     [Fact]
-    public void WithDefault_In_SetDefaults_Fills_Nested_Model_Via_Its_Default_Builder()
+    public void WithDefault_In_SetDefaults_Fills_Nested_Model_Via_The_Default_Layer()
     {
         // Arrange
-        var xprovider = Provider(typeof(PersonBuilder), typeof(AddressBuilder));
+        var xprovider = Provider(typeof(PersonBuilder));
 
         // Act
-        var person = xprovider.For<Person>().Build();
+        var person = xprovider.Use<PersonBuilder>().Build();
 
         // Assert
         Assert.NotNull(person.Address);
@@ -104,7 +101,7 @@ public class WithDefaultTests
     public void WithDefault_Works_Ad_Hoc_In_The_Fluent_Chain()
     {
         // Arrange
-        var xprovider = Provider(typeof(AddressBuilder)); // no PersonBuilder registered
+        var xprovider = Provider(); // no PersonBuilder; the nested Address comes from the cross-cutting layer
 
         // Act
         var person = xprovider.For<Person>()
@@ -122,7 +119,7 @@ public class WithDefaultTests
     public void WithDefault_Is_Equivalent_To_The_Default_Token_String()
     {
         // Arrange
-        var xprovider = Provider(typeof(AddressBuilder));
+        var xprovider = Provider();
 
         // Act
         var viaTyped = xprovider.For<Person>().WithDefault(p => p.Address).Build();
@@ -153,7 +150,7 @@ public class WithDefaultTests
     public void WithDefault_Is_Routed_Into_A_Constructor_Argument()
     {
         // Arrange
-        var xprovider = Provider(typeof(AddressBuilder));
+        var xprovider = Provider();
 
         // Act
         var person = xprovider.For<PersonWithCtorAddress>()
@@ -166,10 +163,10 @@ public class WithDefaultTests
     }
 
     [Fact]
-    public void WithDefault_Composes_A_Deep_Graph_One_Level_Per_Builder()
+    public void WithDefault_Composes_A_Deep_Graph_One_Level_Per_Default_Layer_Entry()
     {
         // Arrange
-        var xprovider = Provider(typeof(Level1Builder), typeof(Level2Builder), typeof(Level3Builder));
+        var xprovider = Provider();
 
         // Act
         var level1 = xprovider.For<Level1>().Build();

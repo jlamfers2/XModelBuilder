@@ -2263,7 +2263,6 @@ services.AddXModelBuilder()
 | `nl.VastTelefoonnummer()` | vast (echt netnummer + abonnee, 10 cijfers) | structureel |
 | `nl.Paspoortnummer()` / `nl.Rijbewijsnummer()` | document- / rijbewijsnummer | alleen vorm |
 | `nl.Provincie()` / `nl.Gemeente()` | een Nederlandse provincie- / gemeentenaam | - |
-| `nl.Geslacht()` | geslacht-label: `man` / `vrouw` / `onbekend` | - |
 
 Vanuit C# bereik je dezelfde generators getypeerd, via de gemaks-accessor
 `xprovider.NL()` (extension op `IModelBuilderProvider`):

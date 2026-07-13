@@ -2079,7 +2079,6 @@ services.AddXModelBuilder()
 | `nl.VastTelefoonnummer()` | landline (real area code + subscriber, 10 digits) | structural |
 | `nl.Paspoortnummer()` / `nl.Rijbewijsnummer()` | document / driving-licence number | shape only |
 | `nl.Provincie()` / `nl.Gemeente()` | a Dutch province / municipality name | - |
-| `nl.Geslacht()` | gender label: `man` / `vrouw` / `onbekend` | - |
 
 From C# you reach the same generators typed, via the `xprovider.NL()` convenience accessor (extension
 on `IModelBuilderProvider`):

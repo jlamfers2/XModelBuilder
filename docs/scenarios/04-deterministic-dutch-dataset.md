@@ -121,7 +121,7 @@ Assert.NotEqual(BsnsWithSeed(2026), BsnsWithSeed(9999));   // a different seed �
 The same `nl.*` surface also covers `Rsin()`, `Vestigingsnummer()`, `AgbCode()`, `BigNummer()`,
 `UzoviCode()`, `Bic()`, `Bankrekeningnummer()` (classic 9-digit, bank elfproef), `EanCode()`
 (GS1-valid), `Kenteken()`, `VastTelefoonnummer()`, `Paspoortnummer()`, `Rijbewijsnummer()`,
-`Provincie()`, `Gemeente()` and `Geslacht()` — see the table in README chapter 21.4.
+`Provincie()` and `Gemeente()` — see the table in README chapter 21.4.
 
 Want your own checked identifier (an ISBN, a Luhn/IMEI number, a different EAN)? The same building
 blocks are public: `Checksums` (mod-11 / Luhn / GS1 / mod-97) and `RandomExtensions`

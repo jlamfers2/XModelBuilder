@@ -49,7 +49,7 @@ public class BuildOverrideSetMemberTests
     public void ComputedDefaults_AreApplied_ToReadOnly_Init_And_BackingFieldMembers()
     {
         // Arrange & Act
-        var bundle = CreateProvider().For<Bundle>().With("Price", "100").Build();
+        var bundle = CreateProvider().Use<BundleBuilder>().With("Price", "100").Build();
 
         // Assert
         Assert.Equal(100m, bundle.Price);
@@ -61,7 +61,7 @@ public class BuildOverrideSetMemberTests
     public void ExplicitValue_IsNotOverwritten_ByTheComputedDefault()
     {
         // Arrange & Act
-        var bundle = CreateProvider().For<Bundle>()
+        var bundle = CreateProvider().Use<BundleBuilder>()
             .With("Price", "100")
             .With("PriceWithVat", "150")             // expliciet opgegeven
             .Build();

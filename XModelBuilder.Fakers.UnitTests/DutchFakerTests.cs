@@ -313,16 +313,6 @@ public class DutchFakerTests
     }
 
     [Fact]
-    public void Geslacht_IsOneOfTheKnownLabels()
-    {
-        // Arrange
-        var nl = NL();
-
-        // Act & Assert
-        Assert.Contains(nl.Geslacht(), new[] { "man", "vrouw", "onbekend" });
-    }
-
-    [Fact]
     public void SameSeed_ProducesIdenticalSequences()
     {
         // Arrange

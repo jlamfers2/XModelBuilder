@@ -4,6 +4,11 @@ A realistic demo showing how XModelBuilder builds test data in end-to-end integr
 tests, following de-facto standards for DI, drivers, scenario contexts and a (test)
 database.
 
+> **Setting up tests for your own project?** This demo is the worked example behind
+> [`docs/testing-best-practices.md`](../docs/testing-best-practices.md) — a guide to structuring unit
+> and integration suites (domain-grouped steps, drivers, contexts, storage helpers, isolated DB
+> transactions, do's & don'ts) for a large professional project. Read that alongside this README.
+
 ## Projects
 
 - **`XModelBuilder.Demo.Shop`** — an ASP.NET Core Web API (.NET 10, EF Core, SQL Server).
@@ -56,8 +61,9 @@ Support/       Infrastructure · Seeding · DI registration
 - `Support/Infrastructure/` — `CustomWebApplicationFactory` (test-base DI),
   `TestDatabase` (shared connection + transaction), `TestAuthHandler`.
 - `Support/Seeding/` — `DatabaseSeeder` builds the initial dataset with XModelBuilder.
-- `Support/ShopModelBuilders.cs` — registers the provider, **both fakers** (XFaker + Bogus)
-  and all builders; reused by **both** DI layers.
+- `Support/ShopModelBuilders.cs` — registers the provider, **both fakers** (XFaker + Bogus),
+  the **cross-cutting layer** (`EntityDefaults<>`) and all builders; reused by **both** DI layers.
+- `Support/EntityDefaults.cs` — the cross-cutting layer; `Support/FixedTimeProvider.cs` — the frozen clock.
 - `Support/ScenarioDependencies.cs` — the **scenario-specific DI** (Reqnroll MS DI plugin).
 
 The aggregate `ShopDriver`/`ScenarioState` bundle the per-domain drivers/contexts for steps
@@ -68,6 +74,18 @@ that combine several domains; they live in `Common/` because they belong to no s
 Both fakers are registered at once to show they coexist without colliding (their tokens are
 namespaced): **XFaker** produces deterministic product SKUs, while **Bogus** (locale `"nl"`)
 generates realistic Dutch names, e-mail addresses and addresses for customers and addresses.
+
+## The cross-cutting layer (audit `CreatedAt`)
+
+`ShopModelBuilders` also registers a **cross-cutting layer** —
+`AddCrossCuttingModelBuilder(typeof(EntityDefaults<>))` (README chapter 5). It runs on **every** build
+and stamps a deterministic `CreatedAt` on every entity that implements `IAuditable`
+(`Customer`, `Product`, `Category`) — a concern true of *every* object, defined **once** instead of in
+each builder. The timestamp comes from a frozen `FixedTimeProvider` (a dependency-free stand-in for
+`FakeTimeProvider`) that replaces the app's system clock in tests, so `CreatedAt`, the server's order
+timestamps and XFaker's age tokens are all reproducible. A specific builder or an explicit `With`
+still overrides the stamp, and `ForEmpty<T>()` opts out — as the seeder does when it builds bare
+`Address` value objects.
 
 ## Three DI layers
 

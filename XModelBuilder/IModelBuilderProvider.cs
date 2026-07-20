@@ -8,19 +8,25 @@ namespace XModelBuilder
     public interface IModelBuilderProvider
     {
         /// <summary>
-        /// Resolves the model builder for <paramref name="modelType"/> (its dedicated builder, or the
-        /// default/fallback builder when none is registered).
+        /// Resolves the builder for <paramref name="modelType"/>: ALWAYS the fixed, sealed base plus the
+        /// optional cross-cutting layer - never a specific/named builder. Works for any model type,
+        /// whether or not a dedicated builder is registered for it. To layer a specific builder on top,
+        /// use <see cref="For(Type,string)"/> or <see cref="Use(Type)"/>; to skip the cross-cutting
+        /// layer, use <c>ForEmpty</c>. See README chapter 5.
         /// </summary>
         /// <param name="modelType">The model type to obtain a builder for.</param>
-        /// <returns>A builder for the requested model type.</returns>
+        /// <returns>A base + cross-cutting-layer builder for the requested model type.</returns>
         IModelBuilder For(Type modelType);
 
         /// <summary>
-        /// Resolves the model builder for <typeparamref name="TModel"/> (its dedicated builder, or the
-        /// default/fallback builder when none is registered).
+        /// Resolves the builder for <typeparamref name="TModel"/>: ALWAYS the fixed, sealed base plus the
+        /// optional cross-cutting layer - never a specific/named builder. Works for any model type,
+        /// whether or not a dedicated builder is registered for it. To layer a specific builder on top,
+        /// use <see cref="For{TModel}(string)"/> or <see cref="Use{TModelBuilder}()"/>; to skip the
+        /// cross-cutting layer, use <see cref="ForEmpty{TModel}()"/>. See README chapter 5.
         /// </summary>
         /// <typeparam name="TModel">The model type to obtain a builder for.</typeparam>
-        /// <returns>A strongly-typed builder for the requested model type.</returns>
+        /// <returns>A strongly-typed base + cross-cutting-layer builder for the requested model type.</returns>
         IModelBuilder<TModel> For<TModel>() where TModel : class;
 
         /// <summary>
@@ -54,13 +60,13 @@ namespace XModelBuilder
         IModelBuilder Use(Type modelBuilderType);
 
         /// <summary>
-        /// Returns a FRESH, EMPTY built-in <c>DefaultModelBuilder&lt;TModel&gt;</c> - always the plain
-        /// built-in builder with no staged configuration - bypassing any registered custom builder for
-        /// <typeparamref name="TModel"/> as well as a configured open-generic fallback (the keyed "default"
-        /// registration). Unlike <see cref="For{TModel}()"/>, it never runs a builder's <c>SetDefaults</c>
-        /// or <c>Build</c> override, so it applies ONLY the values you give it - use it when you must set
-        /// members (e.g. onto an existing instance via <c>Extend</c>) without any defaults or computed
-        /// logic running.
+        /// Returns a FRESH, EMPTY instance of the fixed, sealed <c>DefaultModelBuilder&lt;TModel&gt;</c>
+        /// base with no staged configuration, bypassing any specific builder for <typeparamref name="TModel"/>
+        /// AND suppressing the optional cross-cutting layer for it. Unlike <see cref="For{TModel}()"/>
+        /// (which is base + cross-cutting layer), it runs no <c>SetDefaults</c> and no <c>Build</c>
+        /// override, so it applies ONLY the values you give it - use it when you must set members (e.g.
+        /// onto an existing instance via <c>Extend</c>) without any defaults or computed logic running.
+        /// See README chapter 5.
         /// </summary>
         /// <typeparam name="TModel">The model type to build.</typeparam>
         /// <returns>A fresh, empty <c>DefaultModelBuilder&lt;TModel&gt;</c> that applies only the values you set on it.</returns>

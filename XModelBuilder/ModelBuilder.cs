@@ -7,51 +7,44 @@ using XModelBuilder.Core;
 namespace XModelBuilder;
 
 /// <summary>
-/// Reflection-based base class that turns any model type into a fluent, deterministic test-data
-/// builder (Object Mother + Test Data Builder). Derive a concrete builder as
-/// <c>class PersonBuilder : ModelBuilder&lt;PersonBuilder, Person&gt;</c> and override
-/// <see cref="SetDefaults"/> to seed default values. Members are configured through the typed
-/// <c>With</c> lambdas, string deep-paths (<c>"Address.Street"</c>, <c>"Lines[2].Amount"</c>) or
-/// <see cref="WithValues"/> (e.g. Gherkin tables); values bound to constructor parameters are routed
-/// into construction, the rest are applied afterwards. Values may be literals, lazy factories,
-/// nested builders, faker tokens or the special <c>null()</c>/<c>new()</c>/<c>default()</c> tokens.
+/// Non-generic base of <see cref="ModelBuilder{TBuilder,TModel}"/> holding the storage that does
+/// not depend on the builder/model type parameters: the recorded deep-path settings and constructor
+/// arguments. Keeping this state on a shared, non-generic base is what lets the CROSS-CUTTING
+/// LAYER (a differently-closed builder for the same model type) seed its settings into
+/// another builder via <see cref="SeedFromLayer"/> - the generic type parameters would otherwise
+/// make that state inaccessible across sibling closed generics.
 /// </summary>
-/// <typeparam name="TBuilder">The concrete builder type itself (CRTP), enabling fluent chaining that returns the derived type.</typeparam>
-/// <typeparam name="TModel">The model type this builder builds.</typeparam>
-public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IModelBuilder
-    where TModel : class
-    where TBuilder : ModelBuilder<TBuilder, TModel>
+public abstract class ModelBuilderBase
 {
-
-    private static readonly ConstructorInfo? _modelCtor = FindModelCtor();
-    private static bool _useStandardActivator;
-    private static ConstructorInfo? FindModelCtor()
-    {
-        var ctors = typeof(TModel).GetConstructors();
-        if (ctors.Length == 0)
-        {
-            _useStandardActivator = false;
-            return null;
-        }
-        // ctors is here guaranteed non-empty (the empty case returned above), so First()/ctors[0]
-        // never yields null.
-        var ctor = ctors.Length > 1 ? ctors.OrderBy(c => c.GetParameters().Length).First() : ctors[0];
-        _useStandardActivator = ctor.GetParameters().Length == 0 || ctor.GetParameters().All(p => p.IsOptional);
-        return ctor;
-    }
+    /// <summary>
+    /// A recorded lambda deep-path setting: the target expression plus either a fixed value or a
+    /// lazy value factory evaluated at build time.
+    /// </summary>
     protected sealed class DeepPathExpression
     {
+        /// <summary>The lambda selecting the target member (possibly a nested/indexed deep path).</summary>
         public LambdaExpression DeepPath { get; set; } = null!;
+        /// <summary>The fixed value to assign, used when <see cref="ValueFactory"/> is not set.</summary>
         public object? Value { get; set; }
+        /// <summary>A factory producing the value lazily at build time; takes precedence over <see cref="Value"/>.</summary>
         public Func<object?>? ValueFactory { get; set; }
     }
+
+    /// <summary>
+    /// One recorded setting: either a lambda deep-path expression, a single string deep-path/value
+    /// pair, or a batch of such pairs (e.g. the rows of a Gherkin table).
+    /// </summary>
     protected sealed class DeepPathSetting
     {
+        /// <summary>The lambda deep-path setting, when this entry is expression-based.</summary>
         public DeepPathExpression? DeepPathExpression { get; set; }
+        /// <summary>A single string deep-path/value pair, when this entry is string-based.</summary>
         public KeyValuePair<string, string?>? DeepPathValue { get; set; }
+        /// <summary>A batch of string deep-path/value pairs, when this entry is a batch.</summary>
         public List<KeyValuePair<string, string?>>? DeepPathValues { get; set; }
     }
-    private sealed class CtorParameterInfo
+
+    private protected sealed class CtorParameterInfo
     {
         public ParameterInfo Parameter { get; set; } = null!;
         public object? Value { get; set; }
@@ -86,9 +79,63 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
         }
     }
 
+    private protected readonly List<DeepPathSetting> _deepPathSettingList = [];
+    private protected readonly Dictionary<string, CtorParameterInfo> _ctorArguments = new(StringComparer.InvariantCultureIgnoreCase);
 
-    private readonly List<DeepPathSetting> _deepPathSettingList = [];
-    private readonly Dictionary<string, CtorParameterInfo> _ctorArguments = new(StringComparer.InvariantCultureIgnoreCase);
+    // Seeds this builder with the settings recorded by the cross-cutting-layer builder <paramref name="source"/>,
+    // at the LOWEST precedence: its deep-path settings are added before this builder's own (so a later
+    // setting on the same target wins), and its constructor arguments are copied in (so a later same-named
+    // argument overrides them). Because both builders derive from ModelBuilderBase, the private storage of
+    // 'source' is accessible here even though the two are differently-closed generic siblings.
+    private protected void SeedFromLayer(ModelBuilderBase source)
+    {
+        _deepPathSettingList.AddRange(source._deepPathSettingList);
+        foreach (var (name, arg) in source._ctorArguments)
+        {
+            _ctorArguments[name] = arg;
+        }
+    }
+}
+
+/// <summary>
+/// Reflection-based base class that turns any model type into a fluent, deterministic test-data
+/// builder (Object Mother + Test Data Builder). Derive a concrete builder as
+/// <c>class PersonBuilder : ModelBuilder&lt;PersonBuilder, Person&gt;</c> and override
+/// <see cref="SetDefaults"/> to seed default values. Members are configured through the typed
+/// <c>With</c> lambdas, string deep-paths (<c>"Address.Street"</c>, <c>"Lines[2].Amount"</c>) or
+/// <see cref="WithValues"/> (e.g. Gherkin tables); values bound to constructor parameters are routed
+/// into construction, the rest are applied afterwards. Values may be literals, lazy factories,
+/// nested builders, faker tokens or the special <c>null()</c>/<c>new()</c>/<c>default()</c> tokens.
+/// <para>
+/// Every build seeds the optional CROSS-CUTTING layer (chapter 5): <see cref="Reset"/> applies the
+/// registered cross-cutting layer's settings (lowest precedence) before calling this builder's own
+/// <see cref="SetDefaults"/>, so a specific builder is layered ON TOP of it in a single pipeline.
+/// </para>
+/// </summary>
+/// <typeparam name="TBuilder">The concrete builder type itself (CRTP), enabling fluent chaining that returns the derived type.</typeparam>
+/// <typeparam name="TModel">The model type this builder builds.</typeparam>
+public abstract class ModelBuilder<TBuilder, TModel> : ModelBuilderBase, IModelBuilder<TModel>, IModelBuilder
+    where TModel : class
+    where TBuilder : ModelBuilder<TBuilder, TModel>
+{
+
+    private static readonly ConstructorInfo? _modelCtor = FindModelCtor();
+    private static bool _useStandardActivator;
+    private static ConstructorInfo? FindModelCtor()
+    {
+        var ctors = typeof(TModel).GetConstructors();
+        if (ctors.Length == 0)
+        {
+            _useStandardActivator = false;
+            return null;
+        }
+        // ctors is here guaranteed non-empty (the empty case returned above), so First()/ctors[0]
+        // never yields null.
+        var ctor = ctors.Length > 1 ? ctors.OrderBy(c => c.GetParameters().Length).First() : ctors[0];
+        _useStandardActivator = ctor.GetParameters().Length == 0 || ctor.GetParameters().All(p => p.IsOptional);
+        return ctor;
+    }
+
     private readonly IModelBuilderProvider _xprovider;
     private readonly ModelBuilderOptions _options;
     private TModel? _extendInstance;
@@ -112,16 +159,37 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     }
 
     /// <summary>
-    /// Clears all configured values and re-applies <see cref="SetDefaults"/>, returning the builder
-    /// to its initial state.
+    /// Clears all configured values, re-applies the optional CROSS-CUTTING layer, then re-applies
+    /// this builder's own <see cref="SetDefaults"/>, returning the builder to its initial state.
+    /// The cross-cutting layer's settings carry the lowest precedence, so anything set here or later
+    /// by the caller overrides them (chapter 5).
     /// </summary>
     /// <returns>This builder, to allow call chaining.</returns>
     public TBuilder Reset()
     {
         _deepPathSettingList.Clear();
         _ctorArguments.Clear();
+        ApplyCrossCuttingLayer();
         SetDefaults();
         return (TBuilder)this;
+    }
+
+    // Seeds the settings of the registered cross-cutting layer for TModel into this builder, before
+    // this builder's own SetDefaults runs. The provider's recursion guard returns null while the
+    // cross-cutting layer for TModel is itself being constructed, so it never re-applies itself;
+    // ForEmpty likewise resolves with the layer suppressed. A provider that does not support the
+    // cross-cutting layer (no ICrossCuttingLayerProvider), or a type with no layer registered, simply
+    // applies nothing.
+    private void ApplyCrossCuttingLayer()
+    {
+        if (_xprovider is not ICrossCuttingLayerProvider layerProvider)
+        {
+            return;
+        }
+        if (layerProvider.GetCrossCuttingLayer(typeof(TModel)) is ModelBuilderBase layer && !ReferenceEquals(layer, this))
+        {
+            SeedFromLayer(layer);
+        }
     }
 
     /// <summary>

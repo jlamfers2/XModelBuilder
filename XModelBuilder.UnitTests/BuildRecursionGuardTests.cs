@@ -21,29 +21,35 @@ public class BuildRecursionGuardTests
     public class Leaf { public string? Value { get; set; } }
     public class Holder { public Leaf? A { get; set; } public Leaf? B { get; set; } }
 
-    // ---- Builders -------------------------------------------------------------------------------
+    // ---- Cross-cutting layer --------------------------------------------------------------------------
 
-    [ModelBuilder("father")]
-    public sealed class FatherBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<FatherBuilder, Father>(options, xprovider)
+    // The always-applied cross-cutting layer carries the per-type defaults that For<T>() (no name) triggers:
+    // the self-/mutual-referencing graphs used to prove the reentrancy guard, and the non-cyclic
+    // Holder/Leaf graph used to prove same-typed siblings are NOT a false cycle. Every mechanism
+    // (default() token, WithDefault, WithBuilder, named reference) funnels through a builder's Build(),
+    // so the single guard covers them all; here the nested resolution is via the "default()" token,
+    // which resolves through the cross-cutting layer (chapter 5).
+    public sealed class GraphDefaults<TModel>(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<GraphDefaults<TModel>, TModel>(options, xprovider)
+        where TModel : class
     {
-        protected override void SetDefaults() => WithDefault(v => v.Child);
+        protected override void SetDefaults()
+        {
+            var t = typeof(TModel);
+            if (t == typeof(Father)) With("Child", "default()");
+            else if (t == typeof(Child)) With("Father", "default()");
+            else if (t == typeof(Node)) With("Next", "default()");
+            else if (t == typeof(TokenNode)) With("Next", "default()");
+            else if (t == typeof(Leaf)) With("Value", "leaf");
+            else if (t == typeof(Holder))
+            {
+                With("A", "default()");
+                With("B", "default()");
+            }
+        }
     }
 
-    [ModelBuilder("child")]
-    public sealed class ChildBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<ChildBuilder, Child>(options, xprovider)
-    {
-        protected override void SetDefaults() => WithDefault(k => k.Father);
-    }
-
-    // Cycle via WithDefault on the same type.
-    [ModelBuilder("node")]
-    public sealed class NodeWithDefaultBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<NodeWithDefaultBuilder, Node>(options, xprovider)
-    {
-        protected override void SetDefaults() => WithDefault(n => n.Next);
-    }
+    // ---- Named builders (for the name-addressed cycle mechanisms) -------------------------------
 
     // Cycle via WithBuilder referencing its own registered name.
     [ModelBuilder("nodeWb")]
@@ -51,14 +57,6 @@ public class BuildRecursionGuardTests
         : ModelBuilder<NodeWithBuilderBuilder, Node>(options, xprovider)
     {
         protected override void SetDefaults() => WithBuilder(n => n.Next, "nodeWb");
-    }
-
-    // Cycle via the "default()" string token.
-    [ModelBuilder("tokenNode")]
-    public sealed class TokenNodeBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<TokenNodeBuilder, TokenNode>(options, xprovider)
-    {
-        protected override void SetDefaults() => With("Next", "default()");
     }
 
     // Cycle via a named-builder string reference to its own name.
@@ -69,29 +67,13 @@ public class BuildRecursionGuardTests
         protected override void SetDefaults() => With("Next", "namedRefNode");
     }
 
-    [ModelBuilder("leaf")]
-    public sealed class LeafBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<LeafBuilder, Leaf>(options, xprovider)
-    {
-        protected override void SetDefaults() => With(l => l.Value, "leaf");
-    }
-
-    [ModelBuilder("holder")]
-    public sealed class HolderBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<HolderBuilder, Holder>(options, xprovider)
-    {
-        protected override void SetDefaults()
-        {
-            WithDefault(h => h.A);
-            WithDefault(h => h.B);
-        }
-    }
-
     // ---- Helpers --------------------------------------------------------------------------------
 
     private static IModelBuilderProvider Provider(params Type[] builderTypes)
     {
-        var services = new ServiceCollection().AddXModelBuilder();
+        var services = new ServiceCollection()
+            .AddXModelBuilder()
+            .AddCrossCuttingModelBuilder(typeof(GraphDefaults<>));
         foreach (var builderType in builderTypes)
         {
             services.AddModelBuilder(builderType);
@@ -105,7 +87,7 @@ public class BuildRecursionGuardTests
     public void Mutual_Cycle_Father_Child_Father_Throws_Instead_Of_StackOverflow()
     {
         // Arrange
-        var xprovider = Provider(typeof(FatherBuilder), typeof(ChildBuilder));
+        var xprovider = Provider();
 
         // Act
         var ex = Assert.Throws<InvalidOperationException>(() => xprovider.For<Father>().Build());
@@ -117,10 +99,10 @@ public class BuildRecursionGuardTests
     }
 
     [Fact]
-    public void Self_Cycle_Via_WithDefault_Throws()
+    public void Self_Cycle_Via_Default_Layer_Throws()
     {
         // Arrange
-        var xprovider = Provider(typeof(NodeWithDefaultBuilder));
+        var xprovider = Provider();
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => xprovider.For<Node>().Build());
@@ -140,7 +122,7 @@ public class BuildRecursionGuardTests
     public void Self_Cycle_Via_Default_Token_Throws()
     {
         // Arrange
-        var xprovider = Provider(typeof(TokenNodeBuilder));
+        var xprovider = Provider();
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => xprovider.For<TokenNode>().Build());
@@ -153,14 +135,14 @@ public class BuildRecursionGuardTests
         var xprovider = Provider(typeof(NamedRefNodeBuilder));
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => xprovider.For<NamedRefNode>().Build());
+        Assert.Throws<InvalidOperationException>(() => xprovider.For<NamedRefNode>("namedRefNode").Build());
     }
 
     [Fact]
     public void Two_SameTyped_Siblings_Are_Not_A_Cycle()
     {
         // Arrange
-        var xprovider = Provider(typeof(HolderBuilder), typeof(LeafBuilder));
+        var xprovider = Provider();
 
         // Act
         var holder = xprovider.For<Holder>().Build();
@@ -174,7 +156,7 @@ public class BuildRecursionGuardTests
     public void Build_Chain_Recovers_After_A_Cyclic_Build_Throws()
     {
         // Arrange
-        var xprovider = Provider(typeof(NodeWithDefaultBuilder), typeof(LeafBuilder), typeof(HolderBuilder));
+        var xprovider = Provider();
 
         // Act
         Assert.Throws<InvalidOperationException>(() => xprovider.For<Node>().Build());
@@ -189,7 +171,7 @@ public class BuildRecursionGuardTests
     public void BuildMany_On_Provider_Builds_Each_With_Nested_WithDefault_No_False_Cycle()
     {
         // Arrange
-        var xprovider = Provider(typeof(HolderBuilder), typeof(LeafBuilder));
+        var xprovider = Provider();
 
         // Act
         var holders = xprovider.BuildMany<Holder>(3);
@@ -204,7 +186,7 @@ public class BuildRecursionGuardTests
     public void BuildMany_On_Builder_Repeats_Same_Type_Without_False_Cycle()
     {
         // Arrange
-        var xprovider = Provider(typeof(HolderBuilder), typeof(LeafBuilder));
+        var xprovider = Provider();
 
         // Act
         var holders = xprovider.For<Holder>().BuildMany(3);
@@ -218,7 +200,7 @@ public class BuildRecursionGuardTests
     public void BuildMany_Of_A_Cyclic_Type_Throws_Instead_Of_StackOverflow()
     {
         // Arrange
-        var xprovider = Provider(typeof(NodeWithDefaultBuilder));
+        var xprovider = Provider();
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => xprovider.BuildMany<Node>(2));

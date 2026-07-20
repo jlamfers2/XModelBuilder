@@ -4,6 +4,12 @@ Een realistische demo die laat zien hoe XModelBuilder testdata bouwt in end-to-e
 integratietests, volgens de-facto standaarden voor DI, drivers, scenariocontexts en
 een (test-)database.
 
+> **Tests opzetten voor je eigen project?** Deze demo is het uitgewerkte voorbeeld achter
+> [`docs/testing-best-practices-nl.md`](../docs/testing-best-practices-nl.md) — een gids voor het
+> structureren van unit- en integratiesuites (domein-gegroepeerde steps, drivers, contexts,
+> storage-helpers, geïsoleerde DB-transacties, do's & don'ts) voor een groot professioneel project.
+> Lees die naast deze README.
+
 ## Projecten
 
 - **`XModelBuilder.Demo.Shop`** — een ASP.NET Core Web API (.NET 10, EF Core, SQL Server).
@@ -58,7 +64,8 @@ Support/       Infrastructure · Seeding · DI-registratie
   `TestDatabase` (gedeelde connectie + transactie), `TestAuthHandler`.
 - `Support/Seeding/` — `DatabaseSeeder` bouwt de initiële dataset met XModelBuilder.
 - `Support/ShopModelBuilders.cs` — registreert de provider, **beide fakers** (XFaker +
-  Bogus) en alle builders; door **beide** DI-lagen hergebruikt.
+  Bogus), de **cross-cutting layer** (`EntityDefaults<>`) en alle builders; door **beide** DI-lagen hergebruikt.
+- `Support/EntityDefaults.cs` — de cross-cutting layer; `Support/FixedTimeProvider.cs` — de bevroren klok.
 - `Support/ScenarioDependencies.cs` — de **scenario-specifieke DI** (Reqnroll MS DI-plugin).
 
 De aggregatie-`ShopDriver`/`ScenarioState` bundelen de per-domein drivers/contexts voor
@@ -70,6 +77,19 @@ Beide fakers zijn tegelijk geregistreerd om te tonen dat ze samengaan zonder te 
 (hun tokens zijn genamespaced): **XFaker** levert deterministische product-SKU's, terwijl
 **Bogus** (locale `"nl"`) realistische Nederlandse namen, e-mailadressen en adressen genereert
 voor klanten en adressen.
+
+## De cross-cutting layer (audit `CreatedAt`)
+
+`ShopModelBuilders` registreert ook een **cross-cutting layer** —
+`AddCrossCuttingModelBuilder(typeof(EntityDefaults<>))` (README hoofdstuk 5). Die draait op **elke**
+build en stempelt een deterministische `CreatedAt` op elke entiteit die `IAuditable` implementeert
+(`Customer`, `Product`, `Category`) — een concern dat voor *elk* object geldt, **één keer**
+gedefinieerd in plaats van in elke builder. De timestamp komt uit een bevroren `FixedTimeProvider`
+(een dependency-vrije vervanger voor `FakeTimeProvider`) die in tests de systeemklok van de app
+vervangt, zodat `CreatedAt`, de order-timestamps van de server én XFakers age-tokens allemaal
+reproduceerbaar zijn. Een specifieke builder of een expliciete `With` overschrijft de stempel nog
+steeds, en `ForEmpty<T>()` doet er niet aan mee — zoals de seeder doet bij het bouwen van kale
+`Address`-waardeobjecten.
 
 ## Drie DI-lagen
 

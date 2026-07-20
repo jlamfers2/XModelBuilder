@@ -38,7 +38,6 @@ public class ReqnrollTableExtensionsTests
             .AddXModelBuilder()
             .AddModelBuilder<PersonBuilder>()
             .AddModelBuilder<DutchPersonBuilder>()
-            .UseAsDefaultModelBuilder<PersonBuilder>()
             .BuildServiceProvider()
             .GetRequiredService<IModelBuilderProvider>();
 

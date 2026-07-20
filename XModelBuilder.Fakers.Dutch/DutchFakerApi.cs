@@ -44,8 +44,6 @@ public class DutchFakerApi(Random random)
     // Weights for the first 8 digits of a 9-digit "elfproef" number (the 9th digit is the check).
     private static readonly int[] ElfproefBodyWeights = [9, 8, 7, 6, 5, 4, 3, 2];
 
-    private static readonly string[] Geslachten = ["man", "vrouw", "onbekend"];
-
     // Landline area codes paired with the length of the subscriber number, so area + subscriber is
     // always 10 digits (3-digit area -> 7-digit subscriber, 4-digit area -> 6-digit subscriber).
     private static readonly (string Area, int SubscriberLength)[] AreaCodes =
@@ -279,10 +277,6 @@ public class DutchFakerApi(Random random)
     /// <summary>The name of a Dutch municipality (gemeente).</summary>
     /// <returns>A municipality name such as <c>"Amsterdam"</c>.</returns>
     public string Gemeente() => random.PickFrom(Gemeenten);
-
-    /// <summary>A gender label: one of <c>"man"</c>, <c>"vrouw"</c> or <c>"onbekend"</c>.</summary>
-    /// <returns>A gender label string.</returns>
-    public string Geslacht() => random.PickFrom(Geslachten);
 
     // --- Helpers (thin wrappers over the shared Checksums / RandomExtensions in XModelBuilder) ---
 

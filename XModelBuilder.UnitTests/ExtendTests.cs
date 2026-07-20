@@ -42,7 +42,7 @@ public class ExtendTests
             .AddModelBuilder<OrderBuilder>()
             .BuildServiceProvider()
             .GetRequiredService<IModelBuilderProvider>()
-            .For<Order>();
+            .Use<OrderBuilder>();
 
     [Fact]
     public void Extend_AppliesValuesOntoTheSameInstance_AndReturnsIt()

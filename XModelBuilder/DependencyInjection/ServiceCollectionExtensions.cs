@@ -9,8 +9,8 @@ namespace XModelBuilder.DependencyInjection
     /// <summary>
     /// <see cref="IServiceCollection"/> extension methods for registering XModelBuilder with a DI
     /// container: the core services and options (<see cref="AddXModelBuilder"/>), individual or
-    /// assembly-scanned builders, the open-generic fallback builder, fakers, the per-model-type
-    /// default builder, and a post-registration validation pass.
+    /// assembly-scanned builders, the optional cross-cutting layer
+    /// (<see cref="AddCrossCuttingModelBuilder"/>), fakers, and a post-registration validation pass.
     /// </summary>
     public static class ServiceCollectionExtensions
     {
@@ -43,7 +43,9 @@ namespace XModelBuilder.DependencyInjection
             var state = services.GetOrAddIsolationState();
             state.Isolation = isolation;
 
-            services.AddDefaultModelBuilder(typeof(DefaultModelBuilder<>));
+            // The fixed, sealed no-op base layer. Not user-replaceable: cross-cutting defaults go in a
+            // SEPARATE slot via AddCrossCuttingModelBuilder.
+            services.AddKeyedTransient(typeof(IModelBuilder<>), ModelBuilderProvider.DefaultBaseKey, typeof(DefaultModelBuilder<>));
             services.TryAdd(new ServiceDescriptor(typeof(IModelBuilderProvider), typeof(ModelBuilderProvider), lifetime));
 
             // Flush any faker/seeder registrations that arrived before the isolation was known, so
@@ -143,9 +145,9 @@ namespace XModelBuilder.DependencyInjection
         /// Registers every non-abstract, non-generic <see cref="IModelBuilder"/> implementation found
         /// across the whole AppDomain (via the <see cref="AssemblyScanner"/>). Handy for larger apps
         /// with many model builders spread over several assemblies. Each builder still needs a unique
-        /// <c>[ModelBuilder(name)]</c>; for any model type that ends up with more than one builder, set
-        /// the default with <see cref="UseAsDefaultModelBuilder{TModelBuilder}"/> and verify the whole
-        /// set with <see cref="ValidateXModelBuilderRegistrations"/>.
+        /// <c>[ModelBuilder(name)]</c>; a model type may have several builders (addressed by name/type,
+        /// with no "default among them" to configure). Verify the whole set with
+        /// <see cref="ValidateXModelBuilderRegistrations"/>.
         /// </summary>
         public static IServiceCollection AddModelBuildersFromAssemblies(
                         this IServiceCollection services)
@@ -160,15 +162,19 @@ namespace XModelBuilder.DependencyInjection
         }
 
         /// <summary>
-        /// Registers the open-generic fallback builder (keyed "default") used for model types that have
-        /// no dedicated builder. The type must be an open generic <see cref="IModelBuilder"/> with a
-        /// single type parameter (e.g. <c>DefaultModelBuilder&lt;&gt;</c>).
+        /// Registers the optional CROSS-CUTTING layer: an open-generic builder that is applied to EVERY
+        /// build (on top of the fixed <see cref="DefaultModelBuilder{TModel}"/> base and under any
+        /// specific builder), providing cross-cutting defaults (e.g. a deterministic Guid <c>Id</c>) for
+        /// every model type. Its settings carry the LOWEST precedence, so anything a specific builder or
+        /// the caller sets overrides them; <c>ForEmpty</c> opts out of it entirely. The type must be an
+        /// open generic <see cref="IModelBuilder"/> with a single type parameter (e.g. <c>EntityDefaults&lt;&gt;</c>).
+        /// Registering again replaces the layer (last-wins). See README chapter 5.
         /// </summary>
         /// <param name="services">The service collection to add to.</param>
-        /// <param name="modelBuilderType">The open-generic builder type to register as the fallback.</param>
+        /// <param name="modelBuilderType">The open-generic builder type to register as the cross-cutting layer.</param>
         /// <returns>The same service collection, to allow call chaining.</returns>
         /// <exception cref="ArgumentException">Thrown when <paramref name="modelBuilderType"/> is not a suitable open-generic builder type.</exception>
-        public static IServiceCollection AddDefaultModelBuilder(
+        public static IServiceCollection AddCrossCuttingModelBuilder(
                         this IServiceCollection services,
                         Type modelBuilderType)
         {
@@ -176,7 +182,7 @@ namespace XModelBuilder.DependencyInjection
             {
                 throw new ArgumentException($"Invalid model builder type: {modelBuilderType.GetFriendlyName()}", nameof(modelBuilderType));
             }
-            services.AddKeyedTransient(typeof(IModelBuilder<>), "default", modelBuilderType);
+            services.AddKeyedTransient(typeof(IModelBuilder<>), ModelBuilderProvider.CrossCuttingLayerKey, modelBuilderType);
             return services;
         }
 
@@ -225,49 +231,13 @@ namespace XModelBuilder.DependencyInjection
         }
 
         /// <summary>
-        /// Marks <paramref name="modelBuilderType"/> as the default builder for its model type. The
-        /// model type is derived from the builder (the T of its IModelBuilder&lt;T&gt;). This is the
-        /// order-independent replacement for the old "last registered wins"/"name == default" rules:
-        /// when several builders exist for one model type, <see cref="IModelBuilderProvider.For(Type)"/>
-        /// uses the one configured here. (Not to be confused with <c>AddDefaultModelBuilder</c>, which
-        /// sets the open-generic <i>fallback</i> for model types that have no specific builder at all.)
-        /// </summary>
-        public static IServiceCollection UseAsDefaultModelBuilder(
-                        this IServiceCollection services,
-                        Type modelBuilderType)
-        {
-            var modelType = modelBuilderType.GetModelType()
-                ?? throw new ArgumentException($"Invalid model builder type: {modelBuilderType.GetFriendlyName()}", nameof(modelBuilderType));
-
-            services.GetOrAddModelBuilderDefaults().Set(modelType, modelBuilderType);
-            return services;
-        }
-
-        /// <summary>
-        /// Marks <typeparamref name="TModelBuilder"/> as the default builder for its model type
-        /// (order-independent). See <see cref="UseAsDefaultModelBuilder(IServiceCollection, Type)"/>.
-        /// </summary>
-        /// <typeparam name="TModelBuilder">The builder type to mark as the default for its model type.</typeparam>
-        /// <param name="services">The service collection to configure.</param>
-        /// <returns>The same service collection, to allow call chaining.</returns>
-        public static IServiceCollection UseAsDefaultModelBuilder<TModelBuilder>(
-                        this IServiceCollection services) where TModelBuilder : IModelBuilder
-        {
-            return services.UseAsDefaultModelBuilder(typeof(TModelBuilder));
-        }
-
-        /// <summary>
         /// Validates, after all registrations are in place, that the model-builder registrations obey
-        /// the resolution rules: every builder carries a <c>[ModelBuilder(name)]</c>, names are unique
-        /// per model type, and every model type with more than one builder has a default configured
-        /// (via <see cref="UseAsDefaultModelBuilder{TModelBuilder}"/>) that is actually registered.
-        /// Throws an <see cref="InvalidOperationException"/> listing ALL violations at once.
+        /// the resolution rules: every builder carries a <c>[ModelBuilder(name)]</c> and names are
+        /// unique per model type. Throws an <see cref="InvalidOperationException"/> listing ALL
+        /// violations at once.
         /// </summary>
         public static IServiceCollection ValidateXModelBuilderRegistrations(this IServiceCollection services)
         {
-            var defaults = services
-                .FirstOrDefault(d => d.ServiceType == typeof(ModelBuilderDefaults))?.ImplementationInstance as ModelBuilderDefaults;
-
             var groups = services
                 .Where(d => d.ServiceType.IsConstructedGenericType
                             && d.ServiceType.GetGenericTypeDefinition() == typeof(IModelBuilder<>)
@@ -305,19 +275,6 @@ namespace XModelBuilder.DependencyInjection
                 {
                     errors.Add($"Model builder name '{dupe}' is registered more than once for {modelType.GetFriendlyName()}.");
                 }
-
-                if (builderTypes.Count > 1)
-                {
-                    var configured = defaults?.GetBuilderType(modelType);
-                    if (configured is null)
-                    {
-                        errors.Add($"{modelType.GetFriendlyName()} has {builderTypes.Count} model builders but no default is configured (UseAsDefaultModelBuilder<TBuilder>()).");
-                    }
-                    else if (!builderTypes.Contains(configured))
-                    {
-                        errors.Add($"The configured default model builder '{configured.GetFriendlyName()}' for {modelType.GetFriendlyName()} is not registered.");
-                    }
-                }
             }
 
             if (errors.Count > 0)
@@ -327,18 +284,6 @@ namespace XModelBuilder.DependencyInjection
             }
 
             return services;
-        }
-
-        private static ModelBuilderDefaults GetOrAddModelBuilderDefaults(this IServiceCollection services)
-        {
-            if (services.FirstOrDefault(d => d.ServiceType == typeof(ModelBuilderDefaults))?.ImplementationInstance is ModelBuilderDefaults existing)
-            {
-                return existing;
-            }
-
-            var created = new ModelBuilderDefaults();
-            services.AddSingleton(created);
-            return created;
         }
 
         private static XModelBuilderIsolationState GetOrAddIsolationState(this IServiceCollection services)

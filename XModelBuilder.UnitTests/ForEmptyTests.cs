@@ -12,34 +12,40 @@ public class ForEmptyTests
         public string Color { get; set; } = "";
     }
 
-    [ModelBuilder("gadget")]
-    public sealed class GadgetBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
-        : ModelBuilder<GadgetBuilder, Gadget>(options, xprovider)
+    // The cross-cutting layer: a default that For<T>() applies and ForEmpty must NOT.
+    public sealed class GadgetDefaults<TModel>(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+        : ModelBuilder<GadgetDefaults<TModel>, TModel>(options, xprovider)
+        where TModel : class
     {
-        // A default that ForEmpty must NOT apply (it bypasses this builder entirely).
-        protected override void SetDefaults() => With(g => g.Color, "red");
+        protected override void SetDefaults()
+        {
+            if (typeof(TModel) == typeof(Gadget))
+            {
+                With("Color", "red");
+            }
+        }
     }
 
     private static IModelBuilderProvider CreateProvider() =>
         new ServiceCollection()
             .AddXModelBuilder()
-            .AddModelBuilder<GadgetBuilder>()
+            .AddCrossCuttingModelBuilder(typeof(GadgetDefaults<>))
             .BuildServiceProvider()
             .GetRequiredService<IModelBuilderProvider>();
 
     [Fact]
-    public void ForEmpty_BypassesRegisteredCustomBuilder_AndAppliesOnlyGivenValues()
+    public void ForEmpty_BypassesTheCrossCuttingLayer_AndAppliesOnlyGivenValues()
     {
         // Arrange
         var xprovider = CreateProvider();
 
         // Act
-        var viaFor = xprovider.For<Gadget>().With(g => g.Name, "a").Build();        // custom builder -> SetDefaults runs
-        var viaEmpty = xprovider.ForEmpty<Gadget>().With(g => g.Name, "a").Build(); // bare builder -> no defaults
+        var viaFor = xprovider.For<Gadget>().With(g => g.Name, "a").Build();        // base + cross-cutting layer
+        var viaEmpty = xprovider.ForEmpty<Gadget>().With(g => g.Name, "a").Build(); // bare base -> no defaults
 
         // Assert
-        Assert.Equal("red", viaFor.Color); // custom builder applied its default
-        Assert.Equal("", viaEmpty.Color);  // ForEmpty applied ONLY the given value; no default ran
+        Assert.Equal("red", viaFor.Color); // the cross-cutting layer applied its default
+        Assert.Equal("", viaEmpty.Color);  // ForEmpty applied ONLY the given value; no layer ran
         Assert.Equal("a", viaEmpty.Name);
     }
 

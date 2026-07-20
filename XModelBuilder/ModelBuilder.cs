@@ -9,8 +9,8 @@ namespace XModelBuilder;
 /// <summary>
 /// Non-generic base of <see cref="ModelBuilder{TBuilder,TModel}"/> holding the storage that does
 /// not depend on the builder/model type parameters: the recorded deep-path settings and constructor
-/// arguments. Keeping this state on a shared, non-generic base is what lets the always-applied
-/// DEFAULT LAYER (a differently-closed builder for the same model type) seed its settings into
+/// arguments. Keeping this state on a shared, non-generic base is what lets the CROSS-CUTTING
+/// LAYER (a differently-closed builder for the same model type) seed its settings into
 /// another builder via <see cref="SeedFromLayer"/> - the generic type parameters would otherwise
 /// make that state inaccessible across sibling closed generics.
 /// </summary>
@@ -82,7 +82,7 @@ public abstract class ModelBuilderBase
     private protected readonly List<DeepPathSetting> _deepPathSettingList = [];
     private protected readonly Dictionary<string, CtorParameterInfo> _ctorArguments = new(StringComparer.InvariantCultureIgnoreCase);
 
-    // Seeds this builder with the settings recorded by the default-layer builder <paramref name="source"/>,
+    // Seeds this builder with the settings recorded by the cross-cutting-layer builder <paramref name="source"/>,
     // at the LOWEST precedence: its deep-path settings are added before this builder's own (so a later
     // setting on the same target wins), and its constructor arguments are copied in (so a later same-named
     // argument overrides them). Because both builders derive from ModelBuilderBase, the private storage of

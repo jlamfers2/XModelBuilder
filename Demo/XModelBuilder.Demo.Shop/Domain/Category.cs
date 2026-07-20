@@ -1,10 +1,11 @@
 namespace XModelBuilder.Demo.Shop.Domain;
 
 /// <summary>A product category. Self-referencing (<see cref="ParentCategory"/>) to give the graph depth.</summary>
-public class Category
+public class Category : IAuditable
 {
     public int Id { get; set; }
     public string Name { get; set; } = null!;
+    public DateTime CreatedAt { get; set; }
 
     public int? ParentCategoryId { get; set; }
     public Category? ParentCategory { get; set; }

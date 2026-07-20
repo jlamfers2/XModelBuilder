@@ -74,6 +74,20 @@ Naast de kernlibrary (project XModelBuilder) bevat de solution twee losse
 integratieprojecten voor Gherkin-test-frameworks: XModelBuilder.Reqnroll en
 XModelBuilder.SpecFlow (zie hoofdstuk 18).
 
+### Meer documentatie
+
+Deze README is de canonieke API-/spec-referentie. Taakgerichte aanvullingen staan onder [`docs/`](docs/):
+
+- **[Testing best practices](docs/testing-best-practices-nl.md)** — hoe je unit- en integratietestsuites
+  inricht (domein-gegroepeerde steps, drivers, contexts, isolatie, do's & don'ts) voor een groot project,
+  met XModelBuilder als enige bron van deterministische testdata.
+- **[Scenario-recepten](docs/scenarios/)** (Engels) — gerichte, uitvoerbare data-walkthroughs (time-travel,
+  gerelateerde graphs, een deterministische Nederlandse dataset).
+- **[Migratie v2 → v3](docs/migration-v2-to-v3.md)** (Engels) — een bestaande codebase upgraden naar de
+  gelaagde builder-resolutie.
+- **[Architecture Decision Records](docs/adr/)** (Engels) — de onderbouwing van het basis + cross-cutting-laag-model.
+- **[Demo-webshop](Demo/README-nl.md)** — een volledig uitgewerkt voorbeeld (ASP.NET Core API + Reqnroll-integratietests).
+
 ## Inhoudsopgave
 
 1.  [Wat is XModelBuilder?](#1-wat-is-xmodelbuilder)
@@ -362,7 +376,7 @@ Elk model wordt gebouwd via maximaal DRIE lagen, in ÉÉN pijplijn:
 Dit maakt resolutie volledig transparant: `For<T>()` is ALTIJD de basis plus de cross-cutting laag, nooit
 een onverwachte custom builder; een specifieke builder draait alleen als je hem benoemt. Er is geen
 "default onder meerdere builders" meer te configureren - dat concept, en `UseAsDefaultModelBuilder`,
-zijn verdwenen.
+zijn verdwenen. (Upgraden vanaf v2? Zie [`docs/migration-v2-to-v3.md`](docs/migration-v2-to-v3.md).)
 
 ### De drie ingangen
 
@@ -411,7 +425,8 @@ public sealed class EntityDefaults<TModel>(
 {
     protected override void SetDefaults()
     {
-        if (HasWritableGuidId(typeof(TModel)))   // guard: alleen types die echt een Guid Id hebben
+        // guard: alleen types die echt een Guid Id hebben
+        if (typeof(TModel).GetProperty("Id")?.PropertyType == typeof(Guid))
             With("Id", "xfake.NewGuid()");
     }
 }

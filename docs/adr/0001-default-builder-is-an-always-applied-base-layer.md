@@ -96,7 +96,8 @@ public sealed class EntityDefaults<TModel>(IOptions<ModelBuilderOptions> options
 {
     protected override void SetDefaults()
     {
-        if (HasWritableGuidId(typeof(TModel)))       // guard: only types that actually have a Guid Id
+        // guard: only types that actually have a Guid Id
+        if (typeof(TModel).GetProperty("Id")?.PropertyType == typeof(Guid))
             With("Id", "xfake.NewGuid()");
     }
 }

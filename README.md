@@ -74,6 +74,20 @@ enabled. Besides the core library (project XModelBuilder), the solution contains
 separate integration projects for Gherkin test frameworks: XModelBuilder.Reqnroll and
 XModelBuilder.SpecFlow (see chapter 18).
 
+### Further documentation
+
+This README is the canonical API/spec reference. Task-oriented companions live under [`docs/`](docs/):
+
+- **[Testing best practices](docs/testing-best-practices.md)** — how to structure unit and integration
+  suites (domain-grouped steps, drivers, contexts, isolation, do's & don'ts) for a large project, with
+  XModelBuilder as the single source of deterministic test data.
+- **[Scenario recipes](docs/scenarios/)** — focused, runnable data-shaping walkthroughs (time-travel,
+  related graphs, a deterministic Dutch dataset).
+- **[Migration v2 → v3](docs/migration-v2-to-v3.md)** — upgrading an existing codebase to the layered
+  builder resolution.
+- **[Architecture Decision Records](docs/adr/)** — the reasoning behind the base + cross-cutting-layer model.
+- **[Demo web shop](Demo/README.md)** — a full worked example (ASP.NET Core API + Reqnroll integration tests).
+
 ## Table of contents
 
 1.  [What is XModelBuilder?](#1-what-is-xmodelbuilder)
@@ -350,6 +364,7 @@ Every model is built through up to THREE layers, in ONE pipeline:
 This makes resolution completely transparent: `For<T>()` is ALWAYS the base plus the cross-cutting
 layer, never a surprise custom builder; a specific builder runs only when you name it. There is no
 "default among several builders" to configure - that concept, and `UseAsDefaultModelBuilder`, are gone.
+(Upgrading from v2? See [`docs/migration-v2-to-v3.md`](docs/migration-v2-to-v3.md).)
 
 ### The three entry points
 
@@ -398,7 +413,8 @@ public sealed class EntityDefaults<TModel>(
 {
     protected override void SetDefaults()
     {
-        if (HasWritableGuidId(typeof(TModel)))   // guard: only types that actually have a Guid Id
+        // guard: only types that actually have a Guid Id
+        if (typeof(TModel).GetProperty("Id")?.PropertyType == typeof(Guid))
             With("Id", "xfake.NewGuid()");
     }
 }

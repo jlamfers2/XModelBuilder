@@ -245,9 +245,43 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     /// <param name="builderName">The registered name of the builder to use for the member's value.</param>
     /// <returns>This builder, to allow call chaining.</returns>
     public TBuilder WithBuilder<TValue>(Expression<Func<TModel, TValue>> memberPath, string builderName)
-        where TValue : class
+        where TValue : class?
     {
-        return With(memberPath, () => _xprovider.For<TValue>(builderName).Build());
+        // 'class?' (not 'class') so a nullable-annotated member does not warn at the call site; the
+        // build goes through the non-generic For(Type, name) to avoid a nullable type argument on the
+        // 'class'-constrained For<TModel>(name).
+        return With(memberPath, () => (TValue?)_xprovider.For(typeof(TValue), builderName).Build());
+    }
+
+    /// <summary>
+    /// Sets the member selected by <paramref name="memberPath"/> to a fresh instance built through the
+    /// DEFAULT builder for <typeparamref name="TValue"/> (so that type's <see cref="SetDefaults"/>
+    /// runs). This is the strongly-typed counterpart of the <c>"default()"</c> string token for a
+    /// complex member type - and, like <see cref="WithBuilder{TValue}(Expression{Func{TModel,TValue}}, string)"/>
+    /// versus a named-builder reference, a refactor-safe alternative to <c>With("Member", "default()")</c>.
+    /// The value is produced lazily at build time and, when the member maps to a constructor parameter,
+    /// routed into construction. A <see cref="string"/>-typed member yields <see langword="null"/>,
+    /// matching the <c>"default()"</c> token.
+    /// </summary>
+    /// <typeparam name="TValue">The nested member's type.</typeparam>
+    /// <param name="memberPath">A type-safe expression selecting the target member.</param>
+    /// <returns>This builder, to allow call chaining.</returns>
+    public TBuilder WithDefault<TValue>(Expression<Func<TModel, TValue>> memberPath)
+        where TValue : class?
+    {
+        // Mirrors the "default()" token (chapter 10): for a complex reference type, build via the
+        // default builder; for string it is null (the token's string behavior). The constraint is
+        // 'class?' (not 'class') so a nullable-annotated member (e.g. Address?) does not warn at the
+        // call site; the build goes through the non-generic For(Type) to avoid a nullable type
+        // argument on the 'class'-constrained For<TModel>().
+        return With(memberPath, () =>
+        {
+            if (typeof(TValue) == typeof(string))
+            {
+                return null;
+            }
+            return (TValue?)_xprovider.For(typeof(TValue)).Build();
+        });
     }
 
     /// <summary>
@@ -272,14 +306,26 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     /// <returns>The built model.</returns>
     public virtual TModel Build()
     {
-        var model = CreateInstance();
-
-        foreach (var setting in _deepPathSettingList)
+        // Turn a cyclic build (a type that, via WithDefault/WithBuilder/"default()"/named-builder
+        // values or auto-vivified nested paths, ends up building itself) into a catchable exception
+        // instead of an unrecoverable StackOverflowException. Every nested build funnels through a
+        // builder's Build(), so this single guard covers all of those mechanisms.
+        BuildReentrancyGuard.Enter(typeof(TModel));
+        try
         {
-            ApplyDeepPathSetting(model, setting);
-        }
+            var model = CreateInstance();
 
-        return model;
+            foreach (var setting in _deepPathSettingList)
+            {
+                ApplyDeepPathSetting(model, setting);
+            }
+
+            return model;
+        }
+        finally
+        {
+            BuildReentrancyGuard.Exit();
+        }
     }
 
     /// <summary>
@@ -351,6 +397,11 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     {
         return WithBuilder(getter, builderName);
     }
+
+    IModelBuilder<TModel> IModelBuilder<TModel>.WithDefault<TValue>(Expression<Func<TModel, TValue>> getter)
+    {
+        return WithDefault(getter);
+    }
     #endregion
 
     #region IModelBuilder
@@ -401,6 +452,13 @@ public abstract class ModelBuilder<TBuilder, TModel> : IModelBuilder<TModel>, IM
     {
         var valueType = memberPath.ReturnType;
         _deepPathSettingList.Add(new DeepPathSetting { DeepPathExpression = new DeepPathExpression { DeepPath = memberPath, ValueFactory = () => _xprovider.For(valueType, builderName).Build() } });
+        return this;
+    }
+
+    IModelBuilder IModelBuilder.WithDefault(LambdaExpression memberPath)
+    {
+        var valueType = memberPath.ReturnType;
+        _deepPathSettingList.Add(new DeepPathSetting { DeepPathExpression = new DeepPathExpression { DeepPath = memberPath, ValueFactory = () => valueType == typeof(string) ? null : _xprovider.For(valueType).Build() } });
         return this;
     }
     #endregion

@@ -68,6 +68,17 @@ public interface IModelBuilder
     IModelBuilder WithBuilder(LambdaExpression memberPath, string builderName);
 
     /// <summary>
+    /// Sets the member at <paramref name="memberPath"/> to a fresh instance built through the DEFAULT
+    /// builder for the member's type (so that type's <c>SetDefaults</c> runs). This is the
+    /// weakly-typed counterpart of the <c>"default()"</c> string token for a complex member type; the
+    /// value is produced lazily at build time. A <see cref="string"/>-typed member yields
+    /// <see langword="null"/>, matching the <c>"default()"</c> token.
+    /// </summary>
+    /// <param name="memberPath">A member-access lambda describing the target member.</param>
+    /// <returns>This builder, to allow call chaining.</returns>
+    IModelBuilder WithDefault(LambdaExpression memberPath);
+
+    /// <summary>
     /// Sets multiple members at once from a sequence of deep-path/value pairs (e.g. the rows of a
     /// Gherkin table). Each value is applied as with <see cref="With(string, string)"/>.
     /// </summary>
@@ -160,7 +171,22 @@ public interface IModelBuilder<TModel>
     /// because a generic `With&lt;TValue&gt;(getter, string)` overload would be ambiguous with
     /// `With&lt;TValue&gt;(getter, TValue value)` whenever TValue is itself `string`.
     /// </summary>
-    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class;
+    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class?;
+
+    /// <summary>
+    /// Sets the member selected by <paramref name="getter"/> to a fresh instance built through the
+    /// DEFAULT builder for <typeparamref name="TValue"/> (so that type's <c>SetDefaults</c> runs) -
+    /// the strongly-typed counterpart of the <c>"default()"</c> string token, produced lazily at
+    /// build time. It is the natural way to fill a nested MODEL member (mirroring how
+    /// <see cref="WithBuilder{TValue}(Expression{Func{TModel,TValue}}, string)"/> is the typed
+    /// counterpart of a named-builder reference). Composing it in each builder's <c>SetDefaults</c>
+    /// lets an object graph fill itself, one explicit level per builder. A <see cref="string"/>-typed
+    /// member yields <see langword="null"/>, matching the <c>"default()"</c> token.
+    /// </summary>
+    /// <typeparam name="TValue">The nested member's type.</typeparam>
+    /// <param name="getter">A type-safe expression selecting the target member.</param>
+    /// <returns>This builder, to allow call chaining.</returns>
+    IModelBuilder<TModel> WithDefault<TValue>(Expression<Func<TModel, TValue>> getter) where TValue : class?;
 
     /// <summary>
     /// Sets multiple members at once from a sequence of deep-path/value pairs (e.g. the rows of a

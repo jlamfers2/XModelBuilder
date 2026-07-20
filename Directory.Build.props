@@ -3,7 +3,7 @@
   <!-- Shared metadata for all projects. Packaging is opt-in per project via
        <IsPackable>true</IsPackable>; see Directory.Build.targets for the pack-only bits. -->
   <PropertyGroup>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <Authors>Jaap Lamfers</Authors>
     <Company>Jaap Lamfers</Company>
     <Product>XModelBuilder</Product>

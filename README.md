@@ -8,6 +8,8 @@
 
 **Deterministic test data for .NET — without writing a builder for every class.**
 
+> 📖 New here? Read the intro article: [Stop writing a test-data builder for every class in .NET](https://dev.to/jlamfers2/stop-writing-a-test-data-builder-for-every-class-in-net-4k6n).
+
 XModelBuilder gives you a fluent Test Data Builder for *any* C# class out of the box:
 constructor parameters, init-only properties, read-only members, private backing
 fields — it just works. Configure values with strongly-typed lambdas in code, or
@@ -56,6 +58,7 @@ The seeded fakers used in the examples above ship as separate packages (see chap
 ```
 Install-Package XModelBuilder.Fakers.XFaker   # xfake.* tokens + .XFake() extension
 Install-Package XModelBuilder.Fakers.Bogus    # bogus.* tokens + .Bogus() extension
+Install-Package XModelBuilder.Fakers.Dutch    # nl.* tokens + .NL() extension (Dutch: BSN, IBAN, ...)
 ```
 
 ## About this document
@@ -395,6 +398,16 @@ This looks up the builder with EXACTLY that (unique) name, case-insensitively an
 order-independently. If such a name does not exist, a `KeyNotFoundException` is thrown -
 there is NO silent fallback to regular data conversion.
 
+**When do you actually use the string name?** In C# code you should NOT: reach for
+`Use<TBuilder>()` (or the concrete builder type) instead. That is compiler-checked,
+refactor-safe and needs no magic string, so the `[ModelBuilder("name")]` string adds no
+value there. The name exists FIRST AND FOREMOST for TEXT-DRIVEN contexts where you have no
+type at hand - above all Gherkin tables (Reqnroll/SpecFlow) and the mini data language,
+where a cell or literal simply reads `complex-address` and, because the target is a
+reference type, resolves to that named builder automatically (see chapter 10, "named
+builder reference"). So: in plain C# stay strongly typed via `Use<TBuilder>()`; use the
+string name only where the value comes from text.
+
 **Validation.** After all registrations, call `ValidateXModelBuilderRegistrations()` (on
 the `IServiceCollection`, or `Validate()` on the standalone provider) to enforce the
 rules all at once: every builder has a `[ModelBuilder]` name, names are unique per model
@@ -445,7 +458,7 @@ Gherkin table, see chapter 18). Each entry is evaluated separately: if the key e
 matches (without a dot) a constructor parameter, it is used as a constructor argument;
 otherwise it becomes a deep-path setting.
 
-**f) `WithBuilder<TValue>(Expression<Func<TModel,TValue>> getter, string builderName) where TValue : class`**
+**f) `WithBuilder<TValue>(Expression<Func<TModel,TValue>> getter, string builderName) where TValue : class?`**
 The lambda equivalent of the named-builder-reference syntax (chapter 5/10): sets the
 property to the result of building the builder registered under `[ModelBuilder(builderName)]`
 for `TValue`, so functionally equal to
@@ -471,6 +484,37 @@ the correct provider for THIS builder:
 No overload ambiguity with form (b): `Func<TValue?>` and
 `Func<IModelBuilderProvider,TValue?>` can always be distinguished by the number of lambda
 parameters.
+
+**h) `WithDefault<TValue>(Expression<Func<TModel,TValue>> getter) where TValue : class?`**
+The lambda equivalent of the `"default()"` token (chapter 10) for a complex member type:
+sets the property to a fresh instance built through the DEFAULT builder for `TValue` (so
+that type's `SetDefaults()` runs), functionally equal to
+`With(getter, () => xprovider.For<TValue>().Build())`. It is to `default()` exactly what
+form (f) `WithBuilder` is to a named-builder reference: a refactor-safe, discoverable typed
+alternative to `With("Member", "default()")`. Like the other value-producing forms it is
+evaluated lazily at `Build()` and routed into construction when the member maps to a
+constructor parameter. A `string`-typed member yields `null`, matching the `"default()"`
+token. The constraint is `class?` (not `class`) so that a nullable-annotated member such as
+`Address?` does not warn at the call site.
+
+Composing `WithDefault` inside each builder's `SetDefaults()` lets an object graph fill
+itself, one EXPLICIT level per builder - each builder is responsible only for its own direct
+members:
+
+```csharp
+[ModelBuilder("person")]
+public sealed class PersonBuilder(IOptions<ModelBuilderOptions> options, IModelBuilderProvider xprovider)
+    : ModelBuilder<PersonBuilder, Person>(options, xprovider)
+{
+    protected override void SetDefaults() => WithDefault(p => p.Address); // Address fills itself
+}
+```
+
+Building a `Person` now yields a populated `Address` (and whatever `AddressBuilder` in turn
+fills), without `PersonBuilder` knowing anything about the levels below `Address`. This is a
+deliberate, explicit alternative to a single all-knowing "build the whole graph deep" method:
+there is no framework-wide recursion, so there is nothing to guard against cycles - a
+back-reference is simply a `WithDefault` you do not write.
 
 **`Reset()`**
 Clears all previously supplied `With` settings and constructor arguments, and calls
@@ -681,7 +725,10 @@ following steps, in this order:
     is interpreted as the NAME of a `[ModelBuilder(name)]`-tagged builder for that target
     type (see chapter 5): return `provider.For(targetType, input).Build()`. If no builder
     with that name is registered for that type, a `KeyNotFoundException` is thrown - there
-    is NO silent fallback to the steps below.
+    is NO silent fallback to the steps below. This named-builder-by-string mechanism is
+    exactly what makes named builders useful in TEXT-DRIVEN contexts (Gherkin tables, the
+    mini data language) where no type is available; in plain C# you would instead use the
+    typed `Use<TBuilder>()` (see chapter 5).
 13. If the target type is an enum: parse by name (case-insensitively) or by numeric value.
     (This step - and the two below - are in practice only reached for value types, string
     or object, or for escaped input on a reference type, because step 12 otherwise already
@@ -1183,6 +1230,16 @@ fallback, used by both `CreateInstance()` (step b) and the `"new()"` token in Va
    supplied: apply it to the freshly created instance (chapter 7).
 3. Return the instance.
 
+**Cyclic-build guard.** A thread-local guard tracks the chain of model types currently being
+built. Because EVERY nested model build funnels through a builder's `Build()` - whether triggered
+by `WithDefault`, `WithBuilder`, a `"default()"` or named-builder string value, an auto-vivified
+nested path, or a built list element - a type that (transitively) ends up building itself is
+detected and a clear `InvalidOperationException` (with the cycle path) is thrown, INSTEAD of an
+unrecoverable `StackOverflowException`. A re-entered type always means genuinely infinite recursion,
+since builders configure their defaults declaratively (the same nested build would repeat forever),
+so this is never a false positive. The guard is per-thread and unwinds via `try/finally`, so a
+caught cycle leaves no stale state and independent sibling members of the same type are not affected.
+
 **`Reset()`:**
 Clears the internal list of deep-path settings and the table of constructor arguments, and
 calls `SetDefaults()` again.
@@ -1200,6 +1257,8 @@ calls `SetDefaults()` again.
 | `ModelBuilderOptions.cs` | `ModelBuilderOptions` | culture settings |
 | `ModelBuilderAttribute.cs` | `ModelBuilderAttribute` | mandatory, unique name tag for builders (chapter 5) |
 | `IFaker.cs` | `IFaker` | marker interface for faker classes (chapter 11) |
+| `RandomExtensions.cs` | `Digits`, `PickFrom`, `FromPattern` on `System.Random` | reusable faker building blocks (chapter 21.4) |
+| `Checksums.cs` | `Mod11WeightedSum`/`Mod11IsValid`, `LuhnCheckDigit`/`LuhnIsValid`, `Gs1CheckDigit`/`Gs1IsValid`, `Mod97` | country-agnostic check-digit algorithms (chapter 21.4) |
 | `ModelBuilderProviderExtensions.cs` | `BuildMany<TModel>(...)` on `IModelBuilderProvider` | extension methods (chapter 12) |
 | `ModelBuilderExtensions.cs` | `BuildMany<TModel>(...)` on `IModelBuilder<TModel>` | extension method (chapter 12) |
 | `Default/DefaultModelBuilder.cs` | `DefaultModelBuilder<TModel>` | "no defaults" builder |
@@ -1225,6 +1284,7 @@ calls `SetDefaults()` again.
 | `Core/StringPathSetter.cs` | applies string deep paths to an object (chapter 7) |
 | `Core/LambdaPathSetter.cs` | applies lambda-expression deep paths to an object (chapter 7) |
 | `Core/Instantiator.cs` | "always an instance" fallback (chapter 15) |
+| `Core/BuildReentrancyGuard.cs` | thread-local cyclic-build guard: turns a self-building model graph into a catchable `InvalidOperationException` instead of a `StackOverflowException` (chapter 15) |
 | `Core/HelperExtensions.cs` | reflection helpers: member resolution (`TryGetWritableMember`), member get/set, list element type detection, list growing, lambda path parsing, `ModelBuilderAttribute` name resolution (`GetModelBuilderName`, `HasModelBuilderName`, `GetModelType`), Dictionary/HashSet type-argument detection (`GetDictionaryTypeArgumentsOrNull`, `GetSetElementTypeOrNull`) |
 | `Core/FriendlyNameExtensions.cs` | readable type names for error messages (e.g. `"List<Person>"` instead of `"List\`1"`) |
 
@@ -1241,6 +1301,7 @@ Separate integration projects (see chapter 18):
 | `XModelBuilder.SpecFlow/SpecFlowTableExtensions.cs` | The same extension methods on `TechTalk.SpecFlow.Table` |
 | `XModelBuilder.Fakers.XFaker/Faker.cs`, `XFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker: `Faker` exposes its deterministic primitives under the `XFake` namespace (methods on `XFakerApi`, tokens `xfake.*`), plus `AddXFaker(seed)` and the convenience accessor `provider.XFaker()` (chapter 21) |
 | `XModelBuilder.Fakers.Bogus/BogusFaker.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | `BogusFaker` (exposes a seeded Bogus `Faker`), `AddBogusFaker(seed)` and the convenience accessor `provider.Bogus()` (chapter 21) |
+| `XModelBuilder.Fakers.Dutch/DutchFaker.cs`, `DutchFakerApi.cs` (+ `ServiceCollectionExtensions.cs`, `ModelBuilderProviderExtensions.cs`) | Dependency-free faker for Netherlands-specific data: `DutchFaker` exposes its generators under the `NL` namespace (methods on `DutchFakerApi`, tokens `nl.*`), plus `AddDutchFaker(seed)` and the convenience accessor `provider.NL()` (chapter 21.4) |
 
 ## 17. Full API reference (signatures)
 
@@ -1254,6 +1315,7 @@ public interface IModelBuilder
     IModelBuilder With(LambdaExpression memberPath, Func<IModelBuilderProvider, object?> valueFactory);
     IModelBuilder With(string memberPath, string value);
     IModelBuilder WithBuilder(LambdaExpression memberPath, string builderName);
+    IModelBuilder WithDefault(LambdaExpression memberPath);   // typed "default()" (chapter 6h)
     IModelBuilder WithValues(IEnumerable<KeyValuePair<string, string?>> values);
     object Build();
     object Extend(object instance);   // builds onto an existing instance (chapter 12.1)
@@ -1269,7 +1331,8 @@ public interface IModelBuilder<TModel>
     IModelBuilder<TModel> With<TValue>(Expression<Func<TModel, TValue>> getter, Func<TValue?> valueFactory);
     IModelBuilder<TModel> With<TValue>(Expression<Func<TModel, TValue>> getter, Func<IModelBuilderProvider, TValue?> valueFactory);
     IModelBuilder<TModel> With(string memberPath, string value);
-    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class;
+    IModelBuilder<TModel> WithBuilder<TValue>(Expression<Func<TModel, TValue>> getter, string builderName) where TValue : class?;
+    IModelBuilder<TModel> WithDefault<TValue>(Expression<Func<TModel, TValue>> getter) where TValue : class?;   // typed "default()" (chapter 6h)
     IModelBuilder<TModel> WithValues(IEnumerable<KeyValuePair<string, string?>> values);
     TModel Build();
     TModel Extend(TModel instance);   // builds onto an existing instance (chapter 12.1)
@@ -1938,7 +2001,72 @@ Bogus uses its OWN randomizer (separate from `System.Random`). `AddBogusFaker` s
 via `new Faker { Random = new Randomizer(seed) }` - NOT the global static `Randomizer.Seed`, because
 that is process-wide and would make parallel runs bleed into each other.
 
-### 21.4 Using them together
+### 21.4 XModelBuilder.Fakers.Dutch - DutchFaker (Netherlands-specific)
+
+The project `XModelBuilder.Fakers.Dutch` contains `DutchFaker` (namespace
+`XModelBuilder.Fakers.Dutch`): a small, dependency-free faker for **Netherlands-specific** test data.
+It follows the same namespace convention as XFaker, exposing everything under a single member `NL`, so
+tokens are addressed as `nl.<method>()`. Where an identifier carries an official check, the generated
+value is a **valid** one for that check - BSN/RSIN and old bank account numbers pass the *elfproef*
+(11-test), IBANs pass the ISO 13616 mod-97 check. All values are fictitious and intended only as test
+data.
+
+```csharp
+using XModelBuilder.Fakers.Dutch;
+
+services.AddXModelBuilder()
+    .AddDutchFaker(seed: 12345);   // registers DutchFaker + its own seeded Random (follows the isolation, chapter 21.1)
+```
+
+| Token | Returns | Valid check? |
+|---|---|---|
+| `nl.Bsn()` | Burgerservicenummer, 9 digits | ✅ elfproef |
+| `nl.Rsin()` | RSIN, 9 digits | ✅ elfproef |
+| `nl.BtwNummer()` | VAT number `NL{9}B{2}` (legal-entity form) | ✅ elfproef on the 9-digit core |
+| `nl.KvkNummer()` | KvK number, 8 digits | no public checksum |
+| `nl.Vestigingsnummer()` | KvK establishment number, 12 digits | no public checksum |
+| `nl.AgbCode()` | AGB healthcare-provider code, 8 digits | no public checksum |
+| `nl.BigNummer()` | BIG healthcare-professional number, 11 digits | shape only |
+| `nl.UzoviCode()` | UZOVI health-insurer code, 4 digits | no public checksum |
+| `nl.Iban()` | Dutch IBAN `NL{2}{BANK}{10}` | ✅ mod-97 |
+| `nl.Bic()` | BIC/SWIFT of a Dutch bank, e.g. `INGBNL2A` | structural |
+| `nl.Bankrekeningnummer()` | classic (pre-IBAN) 9-digit account | ✅ bank elfproef |
+| `nl.EanCode()` | EAN-13 / GTIN-13 barcode, 13 digits | ✅ GS1 check digit |
+| `nl.Postcode()` | postcode `1234 AB` (avoids SS/SD/SA) | structural |
+| `nl.Kenteken()` | licence plate in a common sidecode | structural (no vowels/C/Q/W/Y) |
+| `nl.Mobiel()` | mobile number `06` + 8 digits | structural |
+| `nl.VastTelefoonnummer()` | landline (real area code + subscriber, 10 digits) | structural |
+| `nl.Paspoortnummer()` / `nl.Rijbewijsnummer()` | document / driving-licence number | shape only |
+| `nl.Provincie()` / `nl.Gemeente()` | a Dutch province / municipality name | - |
+| `nl.Geslacht()` | gender label: `man` / `vrouw` / `onbekend` | - |
+
+From C# you reach the same generators typed, via the `xprovider.NL()` convenience accessor (extension
+on `IModelBuilderProvider`):
+
+```csharp
+.With("Bsn",      "nl.Bsn()")        // token, e.g. in a Gherkin table
+.With("Postcode", "nl.Postcode()")
+
+var iban = xprovider.NL().Iban();     // typed, in plain C#
+```
+
+`DutchFaker` registers its OWN seeded `Random` (like the Bogus integration registers its own Bogus
+`Faker`), so its seed stays independent from XFaker's and the two can coexist with different seeds.
+
+**Reusable building blocks (in the core `XModelBuilder` package).** The Dutch generators are thin
+wrappers over two small, country-agnostic public helpers you can use in your OWN fakers:
+
+- `RandomExtensions` - extension methods on `System.Random`: `Digits(n)`, `PickFrom(items)` and
+  `FromPattern("??-###-?", letters)` (`#` = digit, `?` = letter, everything else literal).
+- `Checksums` - check-digit algorithms that are NOT Dutch-specific: `Mod11WeightedSum`/`Mod11IsValid`
+  (the "elfproef" family, but also ISBN-10, ISSN, the Norwegian birth number), `LuhnCheckDigit`/
+  `LuhnIsValid` (credit cards, IMEI), `Gs1CheckDigit`/`Gs1IsValid` (EAN/GTIN/SSCC) and `Mod97` (IBAN).
+
+So a BSN is essentially `Mod11WeightedSum` over 8 random digits, and a valid EAN is
+`digits + Checksums.Gs1CheckDigit(digits)` - and the same helpers let you generate an ISBN or a Luhn
+number just as easily.
+
+### 21.5 Using them together
 
 Both fakers can coexist in the same provider; thanks to the `bogus.` path their tokens do not
 collide:
@@ -1948,6 +2076,7 @@ var xprovider = new ServiceCollection()
     .AddXModelBuilder()
     .AddXFaker(seed: 2024)
     .AddBogusFaker(seed: 2024)
+    .AddDutchFaker(seed: 2024)
     .BuildServiceProvider()
     .GetRequiredService<IModelBuilderProvider>();
 
@@ -1955,10 +2084,11 @@ var person = xprovider.For<Person>()
     .With("Id", "xfake.NewGuid(customer-acme)")      // Faker (stable)
     .With("Name", "bogus.name.firstname()")     // BogusFaker, deep-path
     .With("City", "bogus.address.city()")       // BogusFaker, deep-path
+    .With("Bsn", "nl.Bsn()")                    // DutchFaker, valid 11-test
     .Build();
 ```
 
-### 21.5 Points of attention
+### 21.6 Points of attention
 
 - **Banish other ambient non-determinism from your own fakers.** Not only `Random.Shared`, but also
   `Guid.NewGuid()`, `DateTime.Now`/`UtcNow`. Route everything through an injected, seeded `Random`

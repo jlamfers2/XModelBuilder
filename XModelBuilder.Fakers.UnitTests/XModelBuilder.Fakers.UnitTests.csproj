@@ -27,6 +27,7 @@
     <ProjectReference Include="..\XModelBuilder.Fakers.XFaker\XModelBuilder.Fakers.XFaker.csproj" />
     <ProjectReference Include="..\XModelBuilder\XModelBuilder.csproj" />
     <ProjectReference Include="..\XModelBuilder.Fakers.Bogus\XModelBuilder.Fakers.Bogus.csproj" />
+    <ProjectReference Include="..\XModelBuilder.Fakers.Dutch\XModelBuilder.Fakers.Dutch.csproj" />
   </ItemGroup>
 
 </Project>
